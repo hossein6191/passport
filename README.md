@@ -108,8 +108,10 @@ HONEST_URL=… LIAR_URL=… node tests/on_chain/smoke.mjs      # Studio, throwaw
 PASSPORT=0x… ISSUED=honest REFUSED=liar CLAIM=can:code node tests/on_chain/escrow.mjs
 ```
 
-The on-chain tests need `genlayer-js` and `viem` on the Node path. The smoke test passed
-17/17 against Studio on 7 September 2026; both inspections settled 3 agree, 0 disagree.
+The on-chain tests need `genlayer-js` and `viem` on the Node path. On 7 September 2026 the smoke
+test passed 17/17 against Studio, both inspections settling 3 agree, 0 disagree, and the
+escrow test 10/10: 12 GEN reached the operator of a passport-holder, and 7 GEN went back
+to the buyer of a job the passport did not cover.
 
 ## Rules this was built under
 

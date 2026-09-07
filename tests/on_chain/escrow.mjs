@@ -48,7 +48,7 @@ const E2 = await deployFor(REFUSED); console.log("\nescrow for", REFUSED, "at", 
 ok("would_pay says the buyer gets it back", (await view(E2, "would_pay")) === "buyer");
 await send(E2, c, "fund", [], 7n * GEN);
 const bBefore = await balance(buyer.address);
-const r2 = await send(E2, c, "release"); ok("release refunds the buyer when the passport was refused", r2.j?.ok === true && r2.j?.paid === "buyer", `${r2.j?.passport} → ${r2.j?.paid}`);
+const r2 = await send(E2, c, "release"); ok("release refunds the buyer when the passport does not cover the claim", r2.j?.ok === true && r2.j?.paid === "buyer", `${r2.j?.passport} → ${r2.j?.paid}`);
 ok("and the buyer got the 7 GEN back (minus gas)", (await moved(buyer.address, bBefore)) - bBefore > 6n * GEN);
 const late = await send(E1, c, "fund", [], 2n * GEN); ok("funding a settled job is refused *and refunded*", late.j?.ok === false && String(late.j?.reason).includes("returned"));
 console.log(`\n${pass} passed, ${fail} failed`);
