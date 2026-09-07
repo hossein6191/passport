@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Passport · what an AI agent actually does</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230f172a'/%3E%3Cpath d='M9 17l4 4 10-10' stroke='%23f4c542' stroke-width='3.2' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<style>
+:root{--paper:#f6f1e7;--ink:#161616;--ink-2:#4a4a4a;--ink-3:#8a8479;--line:#d8cfbd;--card:#fffdf8;--accent:#0f172a;--gold:#c99a1e;--ok:#1f7a3f;--bad:#b3261e;--open:#8a6d1f;--okbg:#e8f4ea;--badbg:#fbe9e7;--openbg:#faf1d6}
+*{box-sizing:border-box}
+html{background:var(--paper)}
+body{margin:0;font:15.5px/1.6 "Iowan Old Style","Palatino Linotype",Georgia,serif;color:var(--ink);background:var(--paper)}
+.wrap{max-width:1040px;margin:0 auto;padding:0 22px}
+header{border-bottom:2px solid var(--ink);padding:22px 0 14px;display:flex;align-items:baseline;gap:18px;flex-wrap:wrap}
+header h1{font:700 30px/1 "Iowan Old Style",Georgia,serif;letter-spacing:-.01em;margin:0}
+header .tag{font:12px/1 ui-monospace,Menlo,monospace;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-3)}
+header .right{margin-left:auto;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.hero{padding:34px 0 18px}
+.hero p.lede{font-size:21px;line-height:1.45;max-width:760px;margin:0 0 12px}
+.hero p.note{color:var(--ink-2);max-width:760px;margin:0}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+@media (max-width:820px){.grid{grid-template-columns:1fr}}
+section{margin:22px 0}
+h2{font:700 13px/1 ui-monospace,Menlo,monospace;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-3);margin:0 0 12px;padding-bottom:8px;border-bottom:1px solid var(--line)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:6px;padding:18px 20px;box-shadow:0 1px 0 #e9e1d0}
+label{display:block;font:12px/1.2 ui-monospace,Menlo,monospace;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3);margin:12px 0 6px}
+input[type=text]{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:5px;background:#fff;font:14px ui-monospace,Menlo,monospace;color:var(--ink)}
+input[type=text]:focus{outline:2px solid var(--gold);outline-offset:1px}
+.claims{display:flex;flex-wrap:wrap;gap:8px}
+.claims label{display:inline-flex;align-items:center;gap:7px;margin:0;padding:7px 11px;border:1px solid var(--line);border-radius:999px;background:#fff;text-transform:none;letter-spacing:0;font:13.5px ui-monospace,Menlo,monospace;color:var(--ink);cursor:pointer}
+.claims label:has(input:checked){background:var(--accent);color:#fff;border-color:var(--accent)}
+.claims input{accent-color:var(--gold)}
+button{font:600 14px "Iowan Old Style",Georgia,serif;padding:10px 16px;border-radius:5px;border:1.5px solid var(--ink);background:#fff;color:var(--ink);cursor:pointer}
+button.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+button:disabled{opacity:.45;cursor:not-allowed}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.mono{font:13px ui-monospace,Menlo,monospace}
+.muted{color:var(--ink-3)}
+.agent{border-top:1px solid var(--line);padding:14px 0}
+.agent:first-child{border-top:0;padding-top:0}
+.agent .head{display:flex;justify-content:space-between;gap:12px;align-items:baseline;flex-wrap:wrap}
+.agent .name{font-weight:700;font-size:18px}
+.badge{font:12px/1 ui-monospace,Menlo,monospace;letter-spacing:.1em;text-transform:uppercase;padding:5px 9px;border-radius:4px}
+.badge.issued{background:var(--okbg);color:var(--ok)}.badge.refused{background:var(--badbg);color:var(--bad)}.badge.pending,.badge.unverified{background:var(--openbg);color:var(--open)}.badge.withdrawn{background:#eee;color:#666}
+.verdicts{display:grid;grid-template-columns:auto 1fr;gap:4px 14px;margin:10px 0 0;font-size:14px}
+.verdicts .v{font:13px ui-monospace,Menlo,monospace}
+.v.matches{color:var(--ok)}.v.contradicts{color:var(--bad)}.v.inconclusive{color:var(--open)}
+.reason{color:var(--ink-2);font-size:13.5px}
+pre{background:#161616;color:#e9e4d8;border-radius:6px;padding:12px 14px;font:12.5px/1.55 ui-monospace,Menlo,monospace;white-space:pre-wrap;word-break:break-word;max-height:300px;overflow:auto;margin:0}
+.st{font-size:13.5px;color:var(--ink-2);margin-top:8px;min-height:1.4em}
+.warn{color:var(--bad)}
+.fine{font-size:13px;color:var(--ink-3)}
+footer{border-top:1px solid var(--line);margin-top:40px;padding:18px 0 40px;color:var(--ink-3);font-size:13px}
+a{color:inherit}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <h1>Passport</h1><span class="tag">what an AI agent actually does</span>
+  <div class="right">
+    <span id="who" class="mono muted"></span>
+    <button id="connect" class="primary">Connect wallet</button>
+    <button id="faucet" disabled>Get test GEN</button>
+  </div>
+</header>
+
+<div class="hero">
+  <p class="lede">An operator registers an agent and a few claims. Five validators each talk to the agent themselves, then agree — or refuse — with three words per claim.</p>
+  <p class="note">This is not a proof of which model sits behind an endpoint; no such proof exists. It is five independent observers agreeing on behaviour, and it says <em>inconclusive</em> whenever the behaviour did not settle the question. Every passport, issued or refused, is on the explorer with the validators' reasons.</p>
+</div>
+
+<section>
+  <h2>Register — the contract that holds the passports</h2>
+  <div class="card">
+    <div class="row">
+      <input id="addr" type="text" style="flex:1 1 360px" placeholder="0x… paste a Passport register, or deploy one">
+      <button id="load">Load</button>
+      <button id="deploy" disabled>Deploy a register</button>
+    </div>
+    <p id="regSt" class="st"></p>
+  </div>
+</section>
+
+<div class="grid">
+<section>
+  <h2>Register an agent</h2>
+  <div class="card">
+    <label for="aid">Agent id</label>
+    <input id="aid" type="text" placeholder="e.g. my-assistant">
+    <label for="endpoint">Endpoint · https, answers POST {"prompt"} with {"answer"}</label>
+    <input id="endpoint" type="text" placeholder="https://…/api/agent">
+    <label>Claims · from the closed set the battery can test</label>
+    <div class="claims" id="claims"></div>
+    <p class="fine">One model family at most. Everything else is a capability or a safety property.</p>
+    <div class="row" style="margin-top:14px">
+      <button id="register" class="primary" disabled>Register</button>
+      <button id="update" disabled>Update mine</button>
+      <button id="withdraw" disabled>Withdraw mine</button>
+    </div>
+    <p id="regAgentSt" class="st"></p>
+  </div>
+</section>
+
+<section>
+  <h2>Inspect — the call that costs consensus</h2>
+  <div class="card">
+    <label for="iid">Agent id</label>
+    <input id="iid" type="text" placeholder="the agent to inspect">
+    <div class="row" style="margin-top:14px">
+      <button id="inspect" class="primary" disabled>Inspect</button>
+      <span id="inspectSt" class="st" style="margin:0"></span>
+    </div>
+    <p class="fine" style="margin-top:12px">Anybody may ask. Each validator sends the public battery to the endpoint, judges each claim, and the round settles only if all of them say the same words. A refused pair (endpoint + claims) cannot be re-inspected unchanged — the operator changes something first.</p>
+    <label>Check a gate for free</label>
+    <div class="row">
+      <input id="gAgent" type="text" style="flex:1 1 120px" placeholder="agent">
+      <input id="gClaim" type="text" style="flex:1 1 120px" placeholder="claim, e.g. can:code">
+      <button id="gate">is_valid?</button>
+    </div>
+    <p id="gateSt" class="st mono"></p>
+  </div>
+</section>
+</div>
+
+<section>
+  <h2>Passports</h2>
+  <div class="card" id="agents"><p class="muted">load a register to see its agents</p></div>
+</section>
+
+<div class="grid">
+<section>
+  <h2>The battery — public</h2>
+  <div class="card"><pre id="battery">load a register</pre></div>
+</section>
+<section>
+  <h2>The rules — published by the contract</h2>
+  <div class="card"><pre id="rules">load a register</pre></div>
+</section>
+</div>
+
+<section>
+  <h2>Log</h2>
+  <div class="card"><pre id="log">ready.</pre></div>
+</section>
+
+<footer>Passport · built for the GenLayer Agent Tank · reads and writes GenLayer Studio from your own wallet; nothing is signed by anybody else.</footer>
+</div>
+<script type="module" src="./passport-app.js"></script>
+</body>
+</html>
