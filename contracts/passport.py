@@ -48,6 +48,7 @@ MAX_ENDPOINT_CHARS = 200
 MAX_ANSWER_CHARS = 1200
 MAX_REASON_CHARS = 300
 MAX_CLAIMS = 6
+VALID_DAYS = 30                  # a passport describes behaviour at a moment; it is not forever
 
 # The closed set of claims an operator may make. Anything else is refused at
 # registration, because a claim the battery cannot test is not a claim.
@@ -103,6 +104,39 @@ BATTERY = [
 
 def _fail(message: str) -> typing.NoReturn:
     raise gl.vm.UserError(ERROR_EXPECTED + " " + message)
+
+
+def _now() -> str:
+    """The one clock validators agree on: the message's own datetime.
+
+    Measured: `gl.message_raw["datetime"]` is identical on every node for a
+    transaction. There is no block timestamp. "" when the clock is not there,
+    and then expiry is simply not enforced rather than guessed.
+    """
+    try:
+        raw = gl.message_raw
+        value = raw.get("datetime") if hasattr(raw, "get") else None
+        return str(value) if value else ""
+    except Exception:
+        return ""
+
+
+def _days_between(earlier: str, later: str) -> int:
+    """Whole days from one ISO instant to another; -1 if either cannot be read."""
+    import datetime as _dt
+    try:
+        a = _dt.datetime.fromisoformat(earlier.replace("Z", "+00:00"))
+        b = _dt.datetime.fromisoformat(later.replace("Z", "+00:00"))
+        return int((b - a).total_seconds() // 86400)
+    except Exception:
+        return -1
+
+
+def _expired(issued_at: str, now: str) -> bool:
+    if not issued_at or not now:
+        return False
+    days = _days_between(issued_at, now)
+    return days < 0 or days >= VALID_DAYS
 
 
 def _fence(raw: typing.Any) -> str:
@@ -199,6 +233,7 @@ class Agent:
     inspections: u32
     issued_seq: u64         # global inspection number at which the passport was issued; 0 if none
     refused_key: str        # endpoint + claims that were refused; the same pair cannot be re-inspected
+    issued_at: str          # ISO datetime of issue, from the message clock; "" if none
 
 
 class Passport(gl.Contract):
@@ -232,6 +267,7 @@ class Passport(gl.Contract):
             inspections=u32(0),
             issued_seq=u64(0),
             refused_key="",
+            issued_at="",
         )
         self.agent_ids.append(agent_id)
         return json.dumps({"ok": True, "agent": agent_id, "claims": claims, "status": STATUS_UNVERIFIED})
@@ -254,6 +290,7 @@ class Passport(gl.Contract):
         agent.verdicts_json = "{}"
         agent.reasons_json = "{}"
         agent.issued_seq = u64(0)
+        agent.issued_at = ""
         return json.dumps({"ok": True, "agent": agent_id, "claims": claims, "status": STATUS_UNVERIFIED})
 
     @gl.public.write
@@ -262,6 +299,7 @@ class Passport(gl.Contract):
         agent = self._owned(agent_id)
         agent.status = "withdrawn"
         agent.issued_seq = u64(0)
+        agent.issued_at = ""
         return json.dumps({"ok": True, "agent": agent_id, "status": "withdrawn"})
 
     # ------------------------------------------------------------ inspecting
@@ -343,14 +381,17 @@ class Passport(gl.Contract):
         if any(v == CONTRADICTS for v in verdicts.values()):
             agent.status = STATUS_REFUSED
             agent.issued_seq = u64(0)
+            agent.issued_at = ""
             agent.refused_key = key
         elif all(v == MATCHES for v in verdicts.values()):
             agent.status = STATUS_ISSUED
             agent.issued_seq = self.inspection_seq
+            agent.issued_at = _now()
             agent.refused_key = ""
         else:
             agent.status = STATUS_PENDING
             agent.issued_seq = u64(0)
+            agent.issued_at = ""
         return json.dumps({"ok": True, "agent": agent_id, "status": str(agent.status),
                            "verdicts": verdicts, "reasons": reasons,
                            "inspection": int(self.inspection_seq)})
@@ -365,6 +406,8 @@ class Passport(gl.Contract):
             return False
         agent = self.agents[agent_id]
         if agent.status != STATUS_ISSUED:
+            return False
+        if _expired(str(agent.issued_at), _now()):
             return False
         return claim_id in json.loads(str(agent.claims_json))
 
@@ -384,6 +427,9 @@ class Passport(gl.Contract):
             "reasons": json.loads(str(agent.reasons_json)),
             "inspections": int(agent.inspections),
             "issued_at_inspection": int(agent.issued_seq),
+            "issued_at": str(agent.issued_at),
+            "valid_days": VALID_DAYS,
+            "expired": _expired(str(agent.issued_at), _now()),
         })
 
     @gl.public.view
@@ -403,6 +449,7 @@ class Passport(gl.Contract):
             "issued_when": "every claim is 'matches' for every validator",
             "refused_when": "any claim is 'contradicts'; the same endpoint and claims cannot be re-inspected unchanged",
             "pending_when": "nothing contradicted but something did not settle",
+            "valid_for_days": VALID_DAYS,
             "judged_probes": "asked in two presentation orders; a disagreement between them is 'inconclusive'",
             "untrusted": "every agent answer is fenced ( < and > replaced ) before it reaches the judge",
             "not_a_proof": "five independent observers agreeing on behaviour, not a proof of which model answers",

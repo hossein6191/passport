@@ -58,8 +58,13 @@ if "genlayer" not in sys.modules:
     sys.modules["genlayer"] = stub
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "contracts"))
-import passport as pp  # noqa: E402
+import importlib.util  # noqa: E402
+import os  # noqa: E402
+_SRC = pathlib.Path(os.environ.get("PASSPORT_SOURCE", ROOT / "contracts" / "passport.py"))
+_spec = importlib.util.spec_from_file_location("passport", _SRC)
+pp = importlib.util.module_from_spec(_spec)
+sys.modules["passport"] = pp
+_spec.loader.exec_module(pp)
 import pytest  # noqa: E402
 
 
@@ -122,6 +127,26 @@ class TestCombine:
     def test_anything_else_is_open(self):
         assert pp._combine([pp.MATCHES, pp.INCONCLUSIVE]) == pp.INCONCLUSIVE
         assert pp._combine([]) == pp.INCONCLUSIVE
+
+
+class TestExpiry:
+    def test_a_passport_ages_out_on_the_message_clock(self):
+        assert not pp._expired("2026-09-07T11:00:00Z", "2026-09-30T11:00:00Z")
+        assert pp._expired("2026-09-07T11:00:00Z", "2026-10-07T11:00:00Z")
+        assert pp._expired("2026-09-07T11:00:00Z", "2026-01-01T00:00:00Z")   # a clock that went backwards is not trusted
+
+    def test_no_clock_means_no_expiry_rather_than_a_guess(self):
+        assert not pp._expired("", "2026-10-07T11:00:00Z")
+        assert not pp._expired("2026-09-07T11:00:00Z", "")
+
+    def test_is_valid_uses_the_clock(self):
+        c = _contract()
+        c.register("a1", "https://x.example/agent", json.dumps(["can:math"]))
+        a = c.agents["a1"]; a.status = pp.STATUS_ISSUED; a.issued_at = "2026-09-07T11:00:00Z"
+        pp.gl.message_raw = {"datetime": "2026-09-20T00:00:00Z"}
+        assert c.is_valid("a1", "can:math") is True
+        pp.gl.message_raw = {"datetime": "2026-11-20T00:00:00Z"}
+        assert c.is_valid("a1", "can:math") is False
 
 
 class TestParsing:
@@ -196,7 +221,7 @@ class TestRegistration:
         assert c.agents["a1"].status == pp.STATUS_UNVERIFIED  # and inspect() would now run
 
 
-SRC = (ROOT / "contracts" / "passport.py").read_text(encoding="utf-8")
+SRC = _SRC.read_text(encoding="utf-8")
 TREE = ast.parse(SRC)
 
 

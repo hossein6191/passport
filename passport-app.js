@@ -160,7 +160,7 @@ async function renderAgents() {
     const rows = Object.entries(a.verdicts || {}).map(([c, v]) => `<div class="v ${esc(v)}">${esc(c)} → ${esc(v)}</div><div class="reason">${esc((a.reasons || {})[c] || "")}</div>`).join("");
     cards.push(`<div class="agent"><div class="head"><span class="name">${esc(a.agent)}</span><span class="badge ${esc(a.status)}">${esc(a.status)}</span></div>
       <div class="mono muted">${esc(a.endpoint)}</div>
-      <div class="mono muted">operator ${esc(a.operator)} · inspections ${a.inspections}${a.issued_at_inspection ? " · issued at #" + a.issued_at_inspection : ""}</div>
+      <div class="mono muted">operator ${esc(a.operator)} · inspections ${a.inspections}${a.issued_at_inspection ? " · issued at #" + a.issued_at_inspection : ""}${a.issued_at ? " · issued " + esc(String(a.issued_at).slice(0, 10)) + (a.expired ? " · <b>expired</b>" : " · valid " + a.valid_days + " days") : ""}</div>
       <div class="mono">claims: ${(a.claims || []).map(esc).join(", ")}</div>
       ${rows ? `<div class="verdicts">${rows}</div>` : '<p class="fine">not inspected yet</p>'}</div>`);
   }
