@@ -1,0 +1,1 @@
+{ "framework": null, "buildCommand": null, "installCommand": null, "outputDirectory": ".", "functions": { "api/agent.js": { "maxDuration": 30 } } }
