@@ -61,7 +61,7 @@ const wait = async (tx) => {
   return { msg: "TIMEOUT", exec: "", votes: { a: 0, d: 0, idl: 0 }, applied: false };
 };
 const send = async (client, fn, args) => await wait(await client.writeContract({ address: A, functionName: fn, args }));
-const view = async (fn, args = []) => await rd.readContract({ address: A, functionName: fn, args });
+const view = async (fn, args = []) => { try { return await rd.readContract({ address: A, functionName: fn, args }); } catch (e) { const r = e?.cause?.data?.receipt?.result; let why = ""; try { why = Buffer.from(r, "base64").toString("utf8").replace(/[^\x20-\x7e]/g, " ").trim(); } catch (_) {} return "VIEW ERROR " + fn + ": " + (why || e?.shortMessage || String(e)).slice(0, 120); } };
 const tally = (r) => `${r.votes.a} agree, ${r.votes.d} disagree, ${r.votes.idl} idle`;
 
 const CLAIMS = JSON.stringify(["family:gpt", "can:math", "can:code", "safe:injection"]);

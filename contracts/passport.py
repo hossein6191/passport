@@ -121,21 +121,50 @@ def _now() -> str:
         return ""
 
 
-def _days_between(earlier: str, later: str) -> int:
-    """Whole days from one ISO instant to another; -1 if either cannot be read."""
-    import datetime as _dt
+def _instant_seconds(iso: str) -> int:
+    """Seconds since 1970-01-01 for an ISO-8601 UTC instant, integers only.
+
+    Measured: floats and the datetime module trap the VM in deterministic
+    mode ("wasm_trap DeterministicMode"), so the calendar is done by hand.
+    -1 when the string cannot be read.
+    """
     try:
-        a = _dt.datetime.fromisoformat(earlier.replace("Z", "+00:00"))
-        b = _dt.datetime.fromisoformat(later.replace("Z", "+00:00"))
-        return int((b - a).total_seconds() // 86400)
+        s = iso.strip()
+        if s.endswith("Z"):
+            s = s[:-1]
+        elif s.endswith("+00:00"):
+            s = s[:-6]
+        date_part, _, time_part = s.partition("T")
+        y, m, d = (int(x) for x in date_part.split("-"))
+        parts = (time_part.split(":") + ["0", "0", "0"])[:3]
+        hour, minute, second = int(parts[0] or "0"), int(parts[1] or "0"), int(parts[2].split(".")[0] or "0")
+        if not (1 <= m <= 12 and 1 <= d <= 31 and 0 <= hour < 24 and 0 <= minute < 60 and 0 <= second < 60):
+            return -1
+        y2 = y - (1 if m <= 2 else 0)
+        era = (y2 if y2 >= 0 else y2 - 399) // 400
+        yoe = y2 - era * 400
+        doy = (153 * (m + (-3 if m > 2 else 9)) + 2) // 5 + d - 1
+        doe = yoe * 365 + yoe // 4 - yoe // 100 + doy
+        days = era * 146097 + doe - 719468
+        return days * 86400 + hour * 3600 + minute * 60 + second
     except Exception:
         return -1
+
+
+def _days_between(earlier: str, later: str) -> typing.Optional[int]:
+    """Whole days from one ISO instant to another; None if either cannot be read."""
+    a, b = _instant_seconds(earlier), _instant_seconds(later)
+    if a < 0 or b < 0:
+        return None
+    return (b - a) // 86400
 
 
 def _expired(issued_at: str, now: str) -> bool:
     if not issued_at or not now:
         return False
     days = _days_between(issued_at, now)
+    if days is None:
+        return False            # an unreadable clock is not a verdict
     return days < 0 or days >= VALID_DAYS
 
 

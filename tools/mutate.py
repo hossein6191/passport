@@ -50,7 +50,9 @@ MUTATIONS = [
     ("the reason is not capped",
      'reason = str(raw.get("reason", "")).strip()[:MAX_REASON_CHARS]', 'reason = str(raw.get("reason", "")).strip()'),
     ("a passport never expires",
-     '    days = _days_between(issued_at, now)\n    return days < 0 or days >= VALID_DAYS', '    return False'),
+     '    return days < 0 or days >= VALID_DAYS', '    return False'),
+    ("a clock that went backwards is trusted",
+     '    return days < 0 or days >= VALID_DAYS', '    return days >= VALID_DAYS'),
     ("a missing clock counts as expired",
      '    if not issued_at or not now:\n        return False\n', '    if not issued_at or not now:\n        return True\n'),
 ]

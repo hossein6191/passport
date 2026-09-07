@@ -138,6 +138,18 @@ class TestExpiry:
     def test_no_clock_means_no_expiry_rather_than_a_guess(self):
         assert not pp._expired("", "2026-10-07T11:00:00Z")
         assert not pp._expired("2026-09-07T11:00:00Z", "")
+        assert not pp._expired("yesterday-ish", "2026-10-07T11:00:00Z")      # unreadable is not a verdict either
+
+    def test_the_hand_made_calendar_agrees_with_python(self):
+        import datetime as dt
+        samples = ["1970-01-01T00:00:00Z", "2000-02-29T23:59:59Z", "2026-09-07T11:54:19.007997Z",
+                   "2026-12-31T00:00:00+00:00", "2100-03-01T12:00:00Z", "2024-02-29T06:30:15Z"]
+        for s in samples:
+            expected = int(dt.datetime.fromisoformat(s.replace("Z", "+00:00")).timestamp())
+            assert pp._instant_seconds(s) == expected, s
+        assert pp._instant_seconds("2026-13-01T00:00:00Z") == -1
+        assert pp._days_between("2026-09-07T11:54:19Z", "2026-10-07T11:54:18Z") == 29
+        assert pp._days_between("2026-09-07T11:54:19Z", "2026-10-07T11:54:19Z") == 30
 
     def test_is_valid_uses_the_clock(self):
         c = _contract()
