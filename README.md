@@ -25,8 +25,8 @@ Built for the GenLayer Agent Tank hackathon (Agentic Commerce), September 2026.
 | `contracts/fixtures/escrow.py` | the consequence: a buyer-funded job that can only pay a passport-holder |
 | `api/agent.js` | two demo agents behind one Vercel function, `?persona=honest` and `?persona=liar` |
 | `index.html`, `passport-app.js` | the registry page: register, inspect, read passports, check the gate |
-| `tests/test_pure.py` | 25 tests with a GenLayer stub, including static checks on the source |
-| `tools/mutate.py` → `tests/MUTATIONS.md` | 17 defences removed one at a time, each killed by a named test |
+| `tests/test_pure.py` | 34 tests with a GenLayer stub, including static checks on the source |
+| `tools/mutate.py` → `tests/MUTATIONS.md` | 23 defences removed one at a time, each killed by a named test |
 | `tests/on_chain/smoke.mjs`, `escrow.mjs` | the same story against Studio, with a throwaway account |
 | `DECISIONS.md` | the boundary, and the decisions that are not obvious from the code |
 
@@ -72,15 +72,34 @@ per claim, exactly. Agent answers vary between calls; verdicts do not have to.
 
 Every agent answer is capped and fenced by replacement (`<` → `(`, `>` → `)`) before it
 reaches a judge, inside an explicit untrusted-data boundary. Storage keeps what the agent
-actually said; only the prompt is fenced. `update` and `withdraw` belong to the operator
-that registered the agent; `inspect` belongs to anyone.
+actually said; only the prompt is fenced. Nothing the caller controls is printed on a
+delimiter line; the probes and their criteria are contract constants.
+
+## Who may do what
+
+| call | who | what it can do |
+|---|---|---|
+| `register` | anyone | puts an agent on the record; the sender becomes its operator |
+| `update`, `withdraw` | the operator | change endpoint or claims (resets the passport); take the agent off |
+| `inspect` | the operator | runs the battery; any outcome applies — issued, refused or pending |
+| `challenge` | anyone, once a day per agent | runs the same battery on an issued passport; **only a contradiction changes it** |
+| `is_valid`, `passport`, … | anyone, free | read |
+
+An inspection can end a passport, so it belongs to the account that put the agent on the
+record. A stranger who doubts a passport challenges it: same probes, same judges, same
+agreement rule, and the challenger is written on the row — but matches and inconclusives
+leave the passport standing. A passport can be taken away with evidence, never parked by
+asking on a bad day. Every row carries its operator, who last inspected it, and who last
+challenged it.
 
 ## The consequence
 
 `contracts/fixtures/escrow.py` is a buyer-funded job for one agent and one claim. On
 release it asks the register `is_valid(agent, claim)` — a synchronous view, no model, no
 consensus — and pays the operator if the answer is yes, the buyer if it is no. There is
-no path through it that pays an agent without a passport for the job.
+no path through it that pays an agent without a passport for the job. The buyer may
+settle at any time; once the job is seven days old the operator may settle too, under the
+same rule, so a buyer cannot sit on a finished job forever.
 
 ## Two demo agents
 
@@ -101,11 +120,11 @@ transactions for both inspections, the narrowing, and the third inspection.
 ## Running it
 
 ```bash
-python -m pytest -q tests/test_pure.py        # 25 pure tests
-python tools/mutate.py                        # 17 mutants, all must die, writes tests/MUTATIONS.md
+python -m pytest -q tests/                    # 34 pure tests, no network, under a second
+python tools/mutate.py                        # 23 mutants, all must die, writes tests/MUTATIONS.md
 genvm-lint check contracts/passport.py
 HONEST_URL=… LIAR_URL=… node tests/on_chain/smoke.mjs      # Studio, throwaway account, 17 checks
-PASSPORT=0x… ISSUED=honest REFUSED=liar CLAIM=can:code node tests/on_chain/escrow.mjs
+PASSPORT=0x… ISSUED=honest REFUSED=liar CLAIM=can:code OPERATOR_KEY=0x… node tests/on_chain/escrow.mjs
 ```
 
 The on-chain tests need `genlayer-js` and `viem` on the Node path. On 7 September 2026 the smoke

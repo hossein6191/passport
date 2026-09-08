@@ -13,7 +13,76 @@ It is a fixture: small on purpose, and here to be read.
 """
 
 import json
+import typing
 from genlayer import *
+
+SETTLE_AFTER_DAYS = 7           # after this, the operator may settle too; the rule of payment is the same
+
+
+def _now() -> str:
+    """The one clock validators agree on: the message's own datetime.
+
+    Measured: `gl.message_raw["datetime"]` is identical on every node for a
+    transaction. There is no block timestamp. "" when the clock is not there,
+    and then expiry is simply not enforced rather than guessed.
+    """
+    try:
+        raw = gl.message_raw
+        value = raw.get("datetime") if hasattr(raw, "get") else None
+        return str(value) if value else ""
+    except Exception:
+        return ""
+
+
+def _instant_seconds(iso: str) -> int:
+    """Seconds since 1970-01-01 for an ISO-8601 UTC instant, integers only.
+
+    Measured: floats and the datetime module trap the VM in deterministic
+    mode ("wasm_trap DeterministicMode"), so the calendar is done by hand.
+    -1 when the string cannot be read.
+    """
+    try:
+        s = iso.strip()
+        if s.endswith("Z"):
+            s = s[:-1]
+        elif s.endswith("+00:00"):
+            s = s[:-6]
+        date_part, _, time_part = s.partition("T")
+        y, m, d = (int(x) for x in date_part.split("-"))
+        parts = (time_part.split(":") + ["0", "0", "0"])[:3]
+        hour, minute, second = int(parts[0] or "0"), int(parts[1] or "0"), int(parts[2].split(".")[0] or "0")
+        if not (1 <= m <= 12 and 1 <= d <= 31 and 0 <= hour < 24 and 0 <= minute < 60 and 0 <= second < 60):
+            return -1
+        y2 = y - (1 if m <= 2 else 0)
+        era = (y2 if y2 >= 0 else y2 - 399) // 400
+        yoe = y2 - era * 400
+        doy = (153 * (m + (-3 if m > 2 else 9)) + 2) // 5 + d - 1
+        doe = yoe * 365 + yoe // 4 - yoe // 100 + doy
+        days = era * 146097 + doe - 719468
+        return days * 86400 + hour * 3600 + minute * 60 + second
+    except Exception:
+        return -1
+
+
+def _days_between(earlier: str, later: str) -> typing.Optional[int]:
+    """Whole days from one ISO instant to another; None if either cannot be read."""
+    a, b = _instant_seconds(earlier), _instant_seconds(later)
+    if a < 0 or b < 0:
+        return None
+    return (b - a) // 86400
+
+
+def _may_settle(caller_is_buyer: bool, caller_is_operator: bool, funded_at: str, now: str) -> bool:
+    """The buyer may settle at any time; the operator once the job is SETTLE_AFTER_DAYS old.
+
+    A missing clock never opens the operator's path early: no clock, no deadline.
+    """
+    if caller_is_buyer:
+        return True
+    if not caller_is_operator:
+        return False
+    days = _days_between(funded_at, now) if funded_at and now else None
+    return days is not None and days >= SETTLE_AFTER_DAYS
 
 
 @gl.evm.contract_interface
@@ -33,6 +102,7 @@ class Escrow(gl.Contract):
     pool: u256
     settled: bool
     outcome_json: str
+    funded_at: str          # message clock of the first funding; the operator's deadline counts from here
 
     def __init__(self, register: str, agent_id: str, claim_id: str) -> None:
         self.register = Address(register)
@@ -42,6 +112,7 @@ class Escrow(gl.Contract):
         self.pool = u256(0)
         self.settled = False
         self.outcome_json = "{}"
+        self.funded_at = ""
 
     @gl.public.write.payable
     def fund(self) -> str:
@@ -55,6 +126,8 @@ class Escrow(gl.Contract):
         if value == u256(0):
             return json.dumps({"ok": False, "reason": "send an amount greater than zero"})
         self.pool = self.pool + value
+        if not self.funded_at:
+            self.funded_at = _now()
         return json.dumps({"ok": True, "pool": str(int(self.pool))})
 
     def _holder(self) -> dict:
@@ -65,14 +138,23 @@ class Escrow(gl.Contract):
 
     @gl.public.write
     def release(self) -> str:
-        """Pay the operator if the passport covers the claim; otherwise refund the buyer. Buyer only, once."""
-        if gl.message.sender_address != self.buyer:
-            raise gl.vm.UserError("[EXPECTED] only the buyer settles this job")
+        """Pay the operator if the passport covers the claim; otherwise refund the buyer.
+
+        The buyer may settle at any time. The operator may settle once the job
+        is SETTLE_AFTER_DAYS old, so a buyer cannot sit on a finished job
+        forever — and the rule of payment is the same whoever calls.
+        """
         if self.settled:
             raise gl.vm.UserError("[EXPECTED] this job has already been settled")
         if self.pool == u256(0):
             raise gl.vm.UserError("[EXPECTED] there is nothing in the job")
         holder = self._holder()
+        sender = gl.message.sender_address
+        is_buyer = sender == self.buyer
+        is_operator = bool(holder.get("operator")) and Address(str(holder["operator"])) == sender
+        if not _may_settle(is_buyer, is_operator, str(self.funded_at), _now()):
+            raise gl.vm.UserError("[EXPECTED] only the buyer settles this job, or its operator once it is "
+                                  + str(SETTLE_AFTER_DAYS) + " days old")
         amount = self.pool
         if holder["valid"] and holder.get("operator"):
             payee = Address(str(holder["operator"]))
@@ -83,7 +165,8 @@ class Escrow(gl.Contract):
         _Payee(payee).emit_transfer(value=amount)
         self.pool = u256(0)
         self.settled = True
-        outcome = {"passport": str(holder.get("status")), "paid": paid, "to": payee.as_hex, "amount": str(int(amount))}
+        outcome = {"passport": str(holder.get("status")), "paid": paid, "to": payee.as_hex, "amount": str(int(amount)),
+                   "settled_by": "buyer" if is_buyer else "operator"}
         self.outcome_json = json.dumps(outcome)
         return json.dumps({"ok": True, **outcome})
 
@@ -97,5 +180,7 @@ class Escrow(gl.Contract):
         return json.dumps({
             "register": self.register.as_hex, "agent": str(self.agent_id), "claim": str(self.claim_id),
             "buyer": self.buyer.as_hex, "pool": str(int(self.pool)), "settled": bool(self.settled),
+            "funded_at": str(self.funded_at), "settle_after_days": SETTLE_AFTER_DAYS,
+            "operator_may_settle": _may_settle(False, True, str(self.funded_at), _now()),
             "outcome": json.loads(str(self.outcome_json)),
         })

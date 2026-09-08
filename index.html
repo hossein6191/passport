@@ -103,15 +103,16 @@ a{color:inherit}
 </section>
 
 <section>
-  <h2>Inspect — the call that costs consensus</h2>
+  <h2>Inspect or challenge — the calls that cost consensus</h2>
   <div class="card">
     <label for="iid">Agent id</label>
     <input id="iid" type="text" placeholder="the agent to inspect">
     <div class="row" style="margin-top:14px">
-      <button id="inspect" class="primary" disabled>Inspect</button>
+      <button id="inspect" class="primary" disabled>Inspect (operator)</button>
+      <button id="challenge" disabled>Challenge (anyone)</button>
       <span id="inspectSt" class="st" style="margin:0"></span>
     </div>
-    <p class="fine" style="margin-top:12px">Anybody may ask. Each validator sends the public battery to the endpoint, judges each claim, and the round settles only if all of them say the same words. A refused pair (endpoint + claims) cannot be re-inspected unchanged — the operator changes something first.</p>
+    <p class="fine" style="margin-top:12px"><b>Inspect</b> belongs to the operator: any outcome applies, and a refused pair (endpoint + claims) cannot be re-inspected unchanged — change something first. <b>Challenge</b> is for anyone who doubts an issued passport, once a day per agent: the same battery and the same judges, but only a contradiction changes anything. A passport can be taken away with evidence, never parked on a bad day. Either way each validator sends the battery to the endpoint itself, and the round settles only if all of them say the same words.</p>
     <label>Check a gate for free</label>
     <div class="row">
       <input id="gAgent" type="text" style="flex:1 1 120px" placeholder="agent">

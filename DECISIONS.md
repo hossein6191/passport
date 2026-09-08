@@ -42,6 +42,28 @@ Public probes also make the verdicts explainable: a refused passport says which 
 failed and why. An agent that prepares for known questions is still an agent that
 answers them; the claim is about behaviour, not about surprise.
 
+## Who may end a passport
+
+The first version let anyone call `inspect`, and every outcome applied. That is a hole
+a reviewer would name in one line: a competitor inspects an honest agent on a day a
+judged probe comes back inconclusive, and the passport is parked as *pending* — revoked
+without evidence, by a stranger. So the two intentions are two calls. `inspect` belongs
+to the operator, who is paying for their own passport and accepts any outcome.
+`challenge` belongs to anyone, once a day per agent, and can only do one thing: refuse
+the passport on a contradiction, with the challenger's verdicts and address on the row.
+Matches and inconclusives leave it standing. Evidence can take a passport away; noise
+cannot. The cooldown is there because a challenge makes every validator hit the agent's
+endpoint, and that is a cost a stranger should not be able to impose in a loop.
+
+## The buyer cannot sit on a finished job
+
+`Escrow.release` was buyer-only. Walk the operator's journey to the end and it dead-ends:
+the work is done, the passport is valid, and the buyer simply never releases. Now the
+buyer may settle at any time, and the operator may settle once the job is seven days
+old, under exactly the same rule — the passport decides who is paid, never the caller.
+The deadline is counted on the message clock, and a missing clock never opens the
+operator's path early.
+
 ## Why a refused pair cannot be asked again
 
 Inspection costs consensus and the agent's operator does not pay for it. Without the

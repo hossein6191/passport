@@ -65,6 +65,10 @@ _spec = importlib.util.spec_from_file_location("passport", _SRC)
 pp = importlib.util.module_from_spec(_spec)
 sys.modules["passport"] = pp
 _spec.loader.exec_module(pp)
+_ESRC = pathlib.Path(os.environ.get("ESCROW_SOURCE", ROOT / "contracts" / "fixtures" / "escrow.py"))
+_espec = importlib.util.spec_from_file_location("escrow", _ESRC)
+es = importlib.util.module_from_spec(_espec)
+_espec.loader.exec_module(es)
 import pytest  # noqa: E402
 
 
@@ -224,13 +228,142 @@ class TestRegistration:
         a = c.agents["a1"]
         a.status = pp.STATUS_REFUSED
         a.refused_key = a.endpoint + "|" + a.claims_json
-        _as("0xANYONE")
+        _as("0xOPERATOR")
         with pytest.raises(pp.gl.vm.UserError) as e:
             c.inspect("a1")
         assert "already refused" in str(e.value)
         _as("0xOPERATOR")
         c.update("a1", "https://x.example/agent-v2", json.dumps(["can:math"]))
         assert c.agents["a1"].status == pp.STATUS_UNVERIFIED  # and inspect() would now run
+
+
+def _issued(c, agent_id, at="2026-09-07T11:00:00Z"):
+    a = c.agents[agent_id]
+    a.status = pp.STATUS_ISSUED; a.issued_at = at; a.issued_seq = 1
+    return a
+
+
+def _battery_returning(c, verdict):
+    """Stand in for the consensus round: every claim comes back with one word."""
+    c._battery = lambda endpoint, claims: ({cl: verdict for cl in claims}, {cl: "stubbed" for cl in claims})
+
+
+class TestAuthority:
+    """Who may trigger each transition. An inspection can end a passport, so
+    it belongs to the operator; a stranger's doubt goes through `challenge`,
+    which can only end a passport with a contradiction."""
+
+    def test_a_stranger_cannot_inspect(self):
+        c = _contract("0xOPERATOR")
+        c.register("a1", "https://x.example/agent", json.dumps(["can:math"]))
+        _as("0xSTRANGER")
+        with pytest.raises(pp.gl.vm.UserError) as e:
+            c.inspect("a1")
+        assert "only the operator" in str(e.value)
+
+    def test_the_operator_inspects_and_is_recorded_as_the_inspector(self):
+        c = _contract("0xOPERATOR")
+        c.register("a1", "https://x.example/agent", json.dumps(["can:math"]))
+        pp.gl.message_raw = {"datetime": "2026-09-07T11:00:00Z"}
+        _battery_returning(c, pp.MATCHES)
+        out = json.loads(c.inspect("a1"))
+        assert out["status"] == pp.STATUS_ISSUED
+        assert c.agents["a1"].last_inspector == "0xOPERATOR"
+        assert c.agents["a1"].issued_at == "2026-09-07T11:00:00Z"
+
+    def test_only_an_issued_passport_can_be_challenged(self):
+        c = _contract("0xOPERATOR")
+        c.register("a1", "https://x.example/agent", json.dumps(["can:math"]))
+        _as("0xSTRANGER")
+        with pytest.raises(pp.gl.vm.UserError) as e:
+            c.challenge("a1")
+        assert "only an issued" in str(e.value)
+        _issued(c, "a1", at="2026-01-01T00:00:00Z")
+        pp.gl.message_raw = {"datetime": "2026-09-07T11:00:00Z"}   # expired: nothing to challenge
+        with pytest.raises(pp.gl.vm.UserError):
+            c.challenge("a1")
+
+    def test_a_challenge_cannot_park_a_passport_on_a_bad_day(self):
+        c = _contract("0xOPERATOR")
+        c.register("a1", "https://x.example/agent", json.dumps(["can:math"]))
+        _issued(c, "a1")
+        pp.gl.message_raw = {"datetime": "2026-09-08T11:00:00Z"}
+        _as("0xSTRANGER")
+        _battery_returning(c, pp.INCONCLUSIVE)
+        out = json.loads(c.challenge("a1"))
+        assert out["outcome"] == "stands" and c.agents["a1"].status == pp.STATUS_ISSUED
+        assert json.loads(c.agents["a1"].challenge_json)["by"] == "0xSTRANGER"
+        assert c.agents["a1"].last_inspector == "0xOPERATOR" or c.agents["a1"].last_inspector == pp.ZERO
+
+    def test_a_challenge_with_evidence_refuses(self):
+        c = _contract("0xOPERATOR")
+        c.register("a1", "https://x.example/agent", json.dumps(["can:math"]))
+        _issued(c, "a1")
+        pp.gl.message_raw = {"datetime": "2026-09-08T11:00:00Z"}
+        _as("0xSTRANGER")
+        _battery_returning(c, pp.CONTRADICTS)
+        out = json.loads(c.challenge("a1"))
+        a = c.agents["a1"]
+        assert out["outcome"] == "refused" and a.status == pp.STATUS_REFUSED
+        assert a.refused_key == a.endpoint + "|" + a.claims_json      # the same pair cannot be re-inspected
+        assert a.last_inspector == "0xSTRANGER"                         # provenance on the row
+        assert c.is_valid("a1", "can:math") is False
+
+    def test_one_challenge_per_day_per_agent(self):
+        c = _contract("0xOPERATOR")
+        c.register("a1", "https://x.example/agent", json.dumps(["can:math"]))
+        _issued(c, "a1")
+        _battery_returning(c, pp.MATCHES)
+        _as("0xSTRANGER")
+        pp.gl.message_raw = {"datetime": "2026-09-08T11:00:00Z"}
+        c.challenge("a1")
+        pp.gl.message_raw = {"datetime": "2026-09-08T20:00:00Z"}
+        with pytest.raises(pp.gl.vm.UserError) as e:
+            c.challenge("a1")
+        assert "less than" in str(e.value)
+        pp.gl.message_raw = {"datetime": "2026-09-09T11:00:00Z"}
+        assert json.loads(c.challenge("a1"))["outcome"] == "stands"
+        assert c.agents["a1"].challenges == 2
+
+    def test_the_way_back_from_withdrawn_and_from_refused(self):
+        """Journeys, not single calls: every refused party ends somewhere."""
+        c = _contract("0xOPERATOR")
+        c.register("a1", "https://x.example/agent", json.dumps(["can:math", "can:code"]))
+        pp.gl.message_raw = {"datetime": "2026-09-07T11:00:00Z"}
+        _battery_returning(c, pp.CONTRADICTS)
+        c.inspect("a1")
+        assert c.agents["a1"].status == pp.STATUS_REFUSED
+        with pytest.raises(pp.gl.vm.UserError):
+            c.inspect("a1")                                            # not the same question again
+        c.update("a1", "https://x.example/agent", json.dumps(["can:math"]))   # narrow the claims
+        _battery_returning(c, pp.MATCHES)
+        assert json.loads(c.inspect("a1"))["status"] == pp.STATUS_ISSUED
+        c.withdraw("a1")
+        assert c.is_valid("a1", "can:math") is False
+        c.update("a1", "https://x.example/agent", json.dumps(["can:math"]))   # and back on the record
+        assert c.agents["a1"].status == pp.STATUS_UNVERIFIED
+
+
+class TestEscrow:
+    def test_the_buyer_settles_any_time_and_the_operator_after_the_deadline(self):
+        assert es._may_settle(True, False, "", "")
+        assert not es._may_settle(False, False, "2026-09-01T00:00:00Z", "2026-12-01T00:00:00Z")   # a stranger, never
+        assert not es._may_settle(False, True, "2026-09-01T00:00:00Z", "2026-09-07T23:59:59Z")   # day 6
+        assert es._may_settle(False, True, "2026-09-01T00:00:00Z", "2026-09-08T00:00:00Z")       # day 7
+        assert not es._may_settle(False, True, "", "2026-09-08T00:00:00Z")                        # no clock, no deadline
+        assert not es._may_settle(False, True, "2026-09-01T00:00:00Z", "")
+
+    def test_the_escrow_calendar_is_the_register_calendar(self):
+        """Rule 20: anything copied is compared, function by function."""
+        import ast as _ast
+        def body(mod, name):
+            tree = _ast.parse(pathlib.Path(mod.__file__).read_text(encoding="utf-8"))
+            for node in _ast.walk(tree):
+                if isinstance(node, _ast.FunctionDef) and node.name == name:
+                    return _ast.dump(node)
+            raise AssertionError(name + " not found")
+        for fn in ("_instant_seconds", "_days_between", "_now"):
+            assert body(pp, fn) == body(es, fn), fn
 
 
 SRC = _SRC.read_text(encoding="utf-8")
@@ -251,7 +384,7 @@ class TestStaticRules:
     # later that is neither gated nor listed here fails this test.
     OPEN_ON_PURPOSE = {
         "register": "anyone may put their own agent on the record; the sender becomes its operator, and that binding is what everything else is gated on",
-        "inspect": "anybody may ask for an inspection — a buyer verifying before paying is the whole point; the cost is a consensus round the caller pays for, and the refused-key guard stops repeat asks",
+        "challenge": "anyone may put an issued passport to the test — a buyer verifying before paying is the whole point — but only a contradiction changes state, at most once a day per agent, and the challenger is recorded on the row",
     }
 
     def test_every_write_is_bound_to_the_sender_or_listed_with_a_reason(self):

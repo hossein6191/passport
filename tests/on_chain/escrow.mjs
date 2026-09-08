@@ -10,6 +10,7 @@
 import { createClient, createAccount } from "genlayer-js";
 import { studionet } from "genlayer-js/chains";
 import { generatePrivateKey } from "viem/accounts";
+// OPERATOR_KEY=0x… (the throwaway key smoke.mjs printed) adds the check that the operator cannot settle before day 7.
 import { readFileSync } from "node:fs";
 
 const RPC = "https://studio.genlayer.com/api";
@@ -38,7 +39,14 @@ console.log("register", REGISTER, "· issued agent", ISSUED, "· refused agent",
 const E1 = await deployFor(ISSUED); console.log("escrow for", ISSUED, "at", E1);
 ok("would_pay reads the passport with no model and no consensus", (await view(E1, "would_pay")) === "operator", String(await view(E1, "would_pay")));
 const f = await send(E1, c, "fund", [], 12n * GEN); ok("the job takes funds", f.j?.ok === true, `pool ${f.j?.pool}`);
-const s = await send(E1, cs, "release"); ok("a stranger cannot settle the job", s.exec === "ERROR" && s.msg.includes("only the buyer"), s.msg.slice(0, 60));
+const s = await send(E1, cs, "release"); ok("a stranger cannot settle the job", s.exec === "ERROR" && s.msg.includes("only the buyer settles"), s.msg.slice(0, 80));
+if (process.env.OPERATOR_KEY) {
+  const co = createClient({ chain: studionet, account: createAccount(process.env.OPERATOR_KEY) });
+  const early = await send(E1, co, "release");
+  ok("the operator cannot settle before the job is 7 days old", early.exec === "ERROR" && early.msg.includes("7 days old"), early.msg.slice(0, 90));
+  const st = JSON.parse(String(await view(E1, "status")));
+  ok("status says so, from the message clock", st.operator_may_settle === false && st.settle_after_days === 7 && String(st.funded_at).length > 10, `funded_at ${st.funded_at}`);
+} else console.log("(set OPERATOR_KEY to also check the operator's early-settle refusal)");
 const before = await balance(operator);
 const r1 = await send(E1, c, "release"); ok("release pays the operator of a passport-holder", r1.j?.ok === true && r1.j?.paid === "operator", `${r1.j?.passport} → ${r1.j?.paid}`);
 ok("the money actually moved", (await moved(operator, before)) - before === 12n * GEN, "12 GEN");

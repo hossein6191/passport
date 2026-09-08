@@ -32,7 +32,7 @@ const ok = (n, c, d = "") => { c ? pass++ : fail++; console.log(`${c ? "PASS" : 
 const HONEST = process.env.HONEST_URL || "https://passport-agents.vercel.app/api/agent?persona=honest";
 const LIAR = process.env.LIAR_URL || "https://passport-agents.vercel.app/api/agent?persona=liar";
 
-const op = createAccount(generatePrivateKey());
+const opKey = generatePrivateKey(); const op = createAccount(opKey);
 const stranger = createAccount(generatePrivateKey());
 await rpc("sim_fundAccount", { account_address: op.address, amount: 600e18 });
 await rpc("sim_fundAccount", { account_address: stranger.address, amount: 200e18 });
@@ -80,10 +80,12 @@ ok("a stranger cannot change an agent's endpoint", intrude.exec === "ERROR" && i
 ok("is_valid is false before any inspection", (await view("is_valid", ["honest", "can:math"])) === false);
 
 // ---------- the inspections: the calls that cost consensus ----------
-const h = await send(cs, "inspect", ["honest"]);
+const nope = await send(cs, "inspect", ["honest"]);
+ok("a stranger cannot inspect — an inspection can end a passport, so it is the operator's", nope.exec === "ERROR" && nope.msg.includes("only the operator"), nope.msg.slice(0, 60));
+const h = await send(c, "inspect", ["honest"]);
 ok("the honest agent is inspected and the validators agree", h.applied && h.j?.ok === true, `${tally(h)} → ${h.j?.status}`);
 ok("its passport is issued", h.j?.status === "issued", JSON.stringify(h.j?.verdicts));
-const l = await send(cs, "inspect", ["liar"]);
+const l = await send(c, "inspect", ["liar"]);
 ok("the liar is inspected and the validators agree", l.applied && l.j?.ok === true, `${tally(l)} → ${l.j?.status}`);
 ok("its passport is refused", l.j?.status === "refused", JSON.stringify(l.j?.verdicts));
 ok("the family claim is what contradicted, and the injection probe too",
@@ -93,14 +95,24 @@ ok("math held for both — the liar can multiply", h.j?.verdicts?.["can:math"] =
 // ---------- the gate, free ----------
 ok("is_valid gates on the stored passport with no model and no consensus",
    (await view("is_valid", ["honest", "can:code"])) === true && (await view("is_valid", ["liar", "can:code"])) === false);
-const again = await send(cs, "inspect", ["liar"]);
+const again = await send(c, "inspect", ["liar"]);
 ok("the refused pair cannot be re-inspected unchanged", again.exec === "ERROR" && again.msg.includes("already refused"), again.msg.slice(0, 70));
+// ---------- challenges: a stranger's doubt, which can only end a passport with evidence ----------
+const ch = await send(cs, "challenge", ["honest"]);
+ok("a stranger challenges the issued passport and it stands", ch.applied && ch.j?.outcome === "stands" && ch.j?.status === "issued", `${tally(ch)} → ${ch.j?.outcome} · ${JSON.stringify(ch.j?.verdicts)}`);
+const chRec = JSON.parse(String(await view("passport", ["honest"])));
+ok("the challenge is on the record with who asked", chRec.challenges === 1 && String(chRec.last_challenge?.by).toLowerCase() === stranger.address.toLowerCase(), `by ${chRec.last_challenge?.by}`);
+const ch2 = await send(cs, "challenge", ["honest"]);
+ok("a second challenge the same day is refused", ch2.exec === "ERROR" && ch2.msg.includes("less than"), ch2.msg.slice(0, 70));
+const chLiar = await send(cs, "challenge", ["liar"]);
+ok("a refused passport cannot be challenged — there is nothing to take away", chLiar.exec === "ERROR" && chLiar.msg.includes("only an issued"), chLiar.msg.slice(0, 70));
 const fixed = await send(c, "update", ["liar", LIAR, JSON.stringify(["can:math"])]);
 ok("the operator narrows the claims to what is true, resetting the passport", fixed.j?.status === "unverified", tally(fixed));
-const l2 = await send(cs, "inspect", ["liar"]);
+const l2 = await send(c, "inspect", ["liar"]);
 ok("and with honest claims the same agent is issued a passport for what it can do", l2.j?.status === "issued", `${tally(l2)} → ${JSON.stringify(l2.j?.verdicts)}`);
 const rules = JSON.parse(await view("rules"));
 ok("the rules are published, including that this is not a proof", String(rules.not_a_proof).includes("not a proof"));
 
 console.log(`\n${pass} passed, ${fail} failed`);
 console.log("contract:", A);
+console.log("operator key (throwaway, for escrow.mjs):", opKey);

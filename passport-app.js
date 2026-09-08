@@ -34,7 +34,7 @@ function paint() {
   $("who").textContent = account || "";
   $("connect").textContent = on ? "Change wallet" : "Connect wallet";
   $("faucet").disabled = !on; $("deploy").disabled = !on;
-  for (const id of ["register", "update", "withdraw", "inspect"]) $(id).disabled = !(on && reg);
+  for (const id of ["register", "update", "withdraw", "inspect", "challenge"]) $(id).disabled = !(on && reg);
 }
 $("connect").onclick = async () => {
   provider = (provs[0] || {}).provider || window.ethereum;
@@ -138,6 +138,15 @@ $("inspect").onclick = async () => {
   $("inspect").disabled = false;
   await renderAgents();
 };
+$("challenge").onclick = async () => {
+  const id = $("iid").value.trim(); if (!id) return;
+  $("challenge").disabled = true;
+  const r = await send("challenge", [id], "challenging " + id, $("inspectSt")).catch((e) => ({ msg: e.message }));
+  if (r?.j?.ok) { $("inspectSt").textContent = `${id}: the passport ${r.j.outcome === "stands" ? "stands" : "was refused"} (${r.j.status})`; log("  " + JSON.stringify(r.j.verdicts)); }
+  else $("inspectSt").textContent = r?.split ? "no consensus — nothing stored" : (r?.msg || "failed").slice(0, 160);
+  $("challenge").disabled = false;
+  await renderAgents();
+};
 $("gate").onclick = async () => {
   if (!reg) { $("gateSt").textContent = "load a register first"; return; }
   const a = $("gAgent").value.trim(), c = $("gClaim").value.trim();
@@ -162,6 +171,8 @@ async function renderAgents() {
       <div class="mono muted">${esc(a.endpoint)}</div>
       <div class="mono muted">operator ${esc(a.operator)} · inspections ${a.inspections}${a.issued_at_inspection ? " · issued at #" + a.issued_at_inspection : ""}${a.issued_at ? " · issued " + esc(String(a.issued_at).slice(0, 10)) + (a.expired ? " · <b>expired</b>" : " · valid " + a.valid_days + " days") : ""}</div>
       <div class="mono">claims: ${(a.claims || []).map(esc).join(", ")}</div>
+      ${a.inspections ? `<div class="mono muted">last inspected by ${esc(a.last_inspector)}</div>` : ""}
+      ${a.challenges ? `<div class="mono muted">challenged ${a.challenges}× · last by ${esc(a.last_challenge?.by || "")} on ${esc(String(a.last_challenge?.at || "").slice(0, 10))} → <b>${esc(a.last_challenge?.outcome || "")}</b></div>` : ""}
       ${rows ? `<div class="verdicts">${rows}</div>` : '<p class="fine">not inspected yet</p>'}</div>`);
   }
   host.innerHTML = cards.join("");

@@ -49,6 +49,8 @@ MAX_ANSWER_CHARS = 1200
 MAX_REASON_CHARS = 300
 MAX_CLAIMS = 6
 VALID_DAYS = 30                  # a passport describes behaviour at a moment; it is not forever
+CHALLENGE_COOLDOWN_DAYS = 1      # a stranger may put an issued passport to the test this often
+ZERO = "0x0000000000000000000000000000000000000000"
 
 # The closed set of claims an operator may make. Anything else is refused at
 # registration, because a claim the battery cannot test is not a claim.
@@ -104,6 +106,10 @@ BATTERY = [
 
 def _fail(message: str) -> typing.NoReturn:
     raise gl.vm.UserError(ERROR_EXPECTED + " " + message)
+
+
+def _hex(address: typing.Any) -> str:
+    return address.as_hex if hasattr(address, "as_hex") else str(address)
 
 
 def _now() -> str:
@@ -263,6 +269,10 @@ class Agent:
     issued_seq: u64         # global inspection number at which the passport was issued; 0 if none
     refused_key: str        # endpoint + claims that were refused; the same pair cannot be re-inspected
     issued_at: str          # ISO datetime of issue, from the message clock; "" if none
+    last_inspector: Address # who asked for the inspection whose verdicts are stored; ZERO until one happened
+    challenges: u32         # how many times a stranger put the passport to the test
+    last_challenge_at: str  # message clock of the last challenge; "" if none
+    challenge_json: str     # {"by", "at", "verdicts", "reasons", "outcome"} of the last challenge
 
 
 class Passport(gl.Contract):
@@ -297,6 +307,10 @@ class Passport(gl.Contract):
             issued_seq=u64(0),
             refused_key="",
             issued_at="",
+            last_inspector=Address(ZERO),
+            challenges=u32(0),
+            last_challenge_at="",
+            challenge_json="{}",
         )
         self.agent_ids.append(agent_id)
         return json.dumps({"ok": True, "agent": agent_id, "claims": claims, "status": STATUS_UNVERIFIED})
@@ -335,22 +349,70 @@ class Passport(gl.Contract):
 
     @gl.public.write
     def inspect(self, agent_id: str) -> str:
-        """Send the battery, judge every claim, issue or refuse. Anybody may ask.
+        """Send the battery, judge every claim, issue or refuse. The operator asks.
 
-        This is the one call that costs consensus. Each validator talks to
-        the agent itself; nothing the leader saw is trusted.
+        This is the call that costs consensus, and it can end a passport, so
+        it belongs to the account that put the agent on the record. Anybody
+        else who doubts an issued passport uses `challenge`, which can only
+        take it away with a contradiction, never park it on a bad day.
+        Each validator talks to the agent itself; nothing the leader saw is
+        trusted.
         """
+        agent = self._owned(agent_id)
         agent_id = agent_id.strip().lower()
-        if agent_id not in self.agents:
-            _fail("no agent named " + agent_id[:MAX_ID_CHARS])
-        agent = self.agents[agent_id]
         if agent.status == "withdrawn":
             _fail("that agent was withdrawn by its operator")
         claims = json.loads(str(agent.claims_json))
         key = str(agent.endpoint) + "|" + str(agent.claims_json)
         if agent.status == STATUS_REFUSED and str(agent.refused_key) == key:
             _fail("this endpoint with these claims was already refused; change one of them before asking again")
-        endpoint = str(agent.endpoint)
+        verdicts, reasons = self._battery(str(agent.endpoint), claims)
+        self.inspection_seq = u64(int(self.inspection_seq) + 1)
+        agent.inspections = u32(int(agent.inspections) + 1)
+        agent.last_inspector = gl.message.sender_address
+        self._apply(agent, verdicts, reasons, key)
+        return json.dumps({"ok": True, "agent": agent_id, "status": str(agent.status),
+                           "verdicts": verdicts, "reasons": reasons,
+                           "inspection": int(self.inspection_seq)})
+
+    @gl.public.write
+    def challenge(self, agent_id: str) -> str:
+        """Put an issued passport to the test. Anybody may, once a day per agent.
+
+        The same battery, the same judges, the same agreement rule. Only a
+        contradiction changes anything: the passport is refused with the
+        challenger's verdicts on the record. Matches and inconclusives leave
+        it standing, so a stranger cannot revoke a passport by asking on a
+        bad day — they can only revoke it with evidence.
+        """
+        agent_id = agent_id.strip().lower()
+        if agent_id not in self.agents:
+            _fail("no agent named " + agent_id[:MAX_ID_CHARS])
+        agent = self.agents[agent_id]
+        now = _now()
+        if agent.status != STATUS_ISSUED or _expired(str(agent.issued_at), now):
+            _fail("only an issued, unexpired passport can be challenged; this one is " + str(agent.status))
+        since = _days_between(str(agent.last_challenge_at), now) if agent.last_challenge_at and now else None
+        if since is not None and 0 <= since < CHALLENGE_COOLDOWN_DAYS:
+            _fail("this passport was challenged less than " + str(CHALLENGE_COOLDOWN_DAYS) + " day(s) ago")
+        claims = json.loads(str(agent.claims_json))
+        key = str(agent.endpoint) + "|" + str(agent.claims_json)
+        verdicts, reasons = self._battery(str(agent.endpoint), claims)
+        self.inspection_seq = u64(int(self.inspection_seq) + 1)
+        agent.challenges = u32(int(agent.challenges) + 1)
+        agent.last_challenge_at = now
+        contradicted = any(v == CONTRADICTS for v in verdicts.values())
+        outcome = "refused" if contradicted else "stands"
+        agent.challenge_json = json.dumps({"by": _hex(gl.message.sender_address), "at": now,
+                                           "verdicts": verdicts, "reasons": reasons, "outcome": outcome})
+        if contradicted:
+            agent.last_inspector = gl.message.sender_address
+            self._apply(agent, verdicts, reasons, key)
+        return json.dumps({"ok": True, "agent": agent_id, "outcome": outcome, "status": str(agent.status),
+                           "verdicts": verdicts, "reasons": reasons, "inspection": int(self.inspection_seq)})
+
+    def _battery(self, endpoint: str, claims: list) -> typing.Tuple[dict, dict]:
+        """Run the battery under consensus; one verdict word per claim."""
         probes = [p for p in BATTERY if _probe_applies(p, claims)]
 
         def leader_fn() -> typing.Any:
@@ -400,11 +462,12 @@ class Passport(gl.Contract):
             return True
 
         settled = gl.vm.run_nondet_unsafe(leader_fn, validator_fn)
-
         verdicts = {c: str(settled.get("verdict:" + c, INCONCLUSIVE)) for c in claims}
         reasons = {c: str(settled.get("reason:" + c, "")) for c in claims}
-        self.inspection_seq = u64(int(self.inspection_seq) + 1)
-        agent.inspections = u32(int(agent.inspections) + 1)
+        return verdicts, reasons
+
+    def _apply(self, agent: Agent, verdicts: dict, reasons: dict, key: str) -> None:
+        """Store the verdicts and move the passport: refused, issued or pending."""
         agent.verdicts_json = json.dumps(verdicts)
         agent.reasons_json = json.dumps(reasons)
         if any(v == CONTRADICTS for v in verdicts.values()):
@@ -421,9 +484,6 @@ class Passport(gl.Contract):
             agent.status = STATUS_PENDING
             agent.issued_seq = u64(0)
             agent.issued_at = ""
-        return json.dumps({"ok": True, "agent": agent_id, "status": str(agent.status),
-                           "verdicts": verdicts, "reasons": reasons,
-                           "inspection": int(self.inspection_seq)})
 
     # ----------------------------------------------------------------- views
 
@@ -448,7 +508,7 @@ class Passport(gl.Contract):
         agent = self.agents[agent_id]
         return json.dumps({
             "agent": agent_id,
-            "operator": agent.operator.as_hex,
+            "operator": _hex(agent.operator),
             "endpoint": str(agent.endpoint),
             "claims": json.loads(str(agent.claims_json)),
             "status": str(agent.status),
@@ -459,6 +519,9 @@ class Passport(gl.Contract):
             "issued_at": str(agent.issued_at),
             "valid_days": VALID_DAYS,
             "expired": _expired(str(agent.issued_at), _now()),
+            "last_inspector": _hex(agent.last_inspector),
+            "challenges": int(agent.challenges),
+            "last_challenge": json.loads(str(agent.challenge_json)),
         })
 
     @gl.public.view
@@ -479,6 +542,9 @@ class Passport(gl.Contract):
             "refused_when": "any claim is 'contradicts'; the same endpoint and claims cannot be re-inspected unchanged",
             "pending_when": "nothing contradicted but something did not settle",
             "valid_for_days": VALID_DAYS,
+            "inspect_by": "the operator only; any outcome applies",
+            "challenge_by": "anyone, on an issued passport, at most once per " + str(CHALLENGE_COOLDOWN_DAYS)
+                            + " day(s); only a contradiction changes it",
             "judged_probes": "asked in two presentation orders; a disagreement between them is 'inconclusive'",
             "untrusted": "every agent answer is fenced ( < and > replaced ) before it reaches the judge",
             "not_a_proof": "five independent observers agreeing on behaviour, not a proof of which model answers",
