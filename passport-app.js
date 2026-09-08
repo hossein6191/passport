@@ -7,6 +7,14 @@ const EXPLORER = "https://explorer-studio.genlayer.com";
 const CHAIN = { chainId: "0xf22f", chainName: "GenLayer Studio", nativeCurrency: { name: "GEN", symbol: "GEN", decimals: 18 }, rpcUrls: [RPC], blockExplorerUrls: [EXPLORER + "/"] };
 const CLAIMS = ["family:gpt", "family:claude", "family:gemini", "family:llama", "family:mistral", "family:other",
                 "can:code", "can:translate", "can:summarize", "can:math", "safe:injection"];
+// The register deployed from the author's wallet; filled in at deployment. Empty means "none yet".
+const DEMO_REGISTER = "";
+// The two demo agents are served by this same site (api/agent.js on Vercel, tools/serve-agents.mjs locally).
+const DEMO_BASE = location.origin + "/api/agent";
+const DEMO = {
+  honest: { id: "honest", endpoint: DEMO_BASE + "?persona=honest", claims: ["family:gpt", "can:math", "can:code", "safe:injection"] },
+  liar:   { id: "liar",   endpoint: DEMO_BASE + "?persona=liar",   claims: ["family:gpt", "can:math", "can:code", "safe:injection"] },
+};
 
 const rpc = async (m, p) => {
   for (let i = 0; i < 6; i++) {
@@ -47,6 +55,34 @@ $("faucet").onclick = async () => { await rpc("sim_fundAccount", { account_addre
 /* ---------------------------------------------------------------- claims */
 $("claims").innerHTML = CLAIMS.map((c) => `<label><input type="checkbox" value="${c}">${c}</label>`).join("");
 const chosenClaims = () => [...$("claims").querySelectorAll("input:checked")].map((i) => i.value);
+const setClaims = (list) => { for (const i of $("claims").querySelectorAll("input")) i.checked = list.includes(i.value); };
+if ($("claimIds")) $("claimIds").innerHTML = CLAIMS.map((c) => `<option value="${c}">`).join("");
+if ($("demoBase")) $("demoBase").textContent = DEMO_BASE + "?persona=honest|liar";
+
+/* ----------------------------------------------------------- suggestions */
+for (const chip of document.querySelectorAll("[data-preset]")) chip.onclick = () => {
+  const d = DEMO[chip.dataset.preset]; if (!d) return;
+  $("aid").value = d.id; $("endpoint").value = d.endpoint; setClaims(d.claims);
+  $("regAgentSt").textContent = `filled in the ${chip.dataset.preset} demo agent — press Register`
+    + (d.endpoint.startsWith("https://") ? "" : " (the contract accepts https endpoints only; on the deployed site this address is https)");
+};
+if ($("genId")) $("genId").onclick = () => {
+  const words = ["atlas", "nova", "sable", "quill", "orbit", "lumen", "ferry", "cedar"];
+  const tail = Math.random().toString(36).slice(2, 6);
+  $("aid").value = words[Math.floor(Math.random() * words.length)] + "-" + tail;
+};
+function pick(id, claim) {
+  $("iid").value = id; $("gAgent").value = id; if (claim) $("gClaim").value = claim;
+  $("inspectSt").textContent = `${id} is in the boxes below — Inspect if you are its operator, Challenge otherwise`;
+}
+function offerAgents(ids, firstClaim) {
+  if ($("agentIds")) $("agentIds").innerHTML = ids.map((i) => `<option value="${esc(i)}">`).join("");
+  const host = $("pickAgents"); if (!host) return;
+  host.innerHTML = '<span class="lead">pick</span>' + (ids.length
+    ? ids.map((i) => `<button class="chip" data-pick="${esc(i)}">${esc(i)}</button>`).join("")
+    : '<span class="fine">no agents registered yet</span>');
+  for (const b of host.querySelectorAll("[data-pick]")) b.onclick = () => pick(b.dataset.pick, firstClaim[b.dataset.pick]);
+}
 
 /* -------------------------------------------------------------- register */
 async function readOrRetry(fn, args = [], tries = 4, address = reg) {
@@ -62,6 +98,7 @@ async function useRegister(address) {
   reg = address; try { localStorage.setItem("passport_register", address); } catch (e) {}
   $("addr").value = address;
   $("regSt").innerHTML = "This register on the explorer: " + link("/address/" + address, address);
+  if ($("regLink")) { $("regLink").href = EXPLORER + "/address/" + address; $("regLink").target = "_blank"; $("regLink").rel = "noopener"; }
   $("rules").textContent = JSON.stringify(JSON.parse(String(probe.value)), null, 2);
   const bat = await readOrRetry("battery");
   if (bat.ok) $("battery").textContent = JSON.parse(String(bat.value)).map((p) => `[${p.id}] ${p.claim} · ${p.kind}\n  ${p.prompt}${p.criteria ? "\n  judged by: " + p.criteria : ""}`).join("\n\n");
@@ -163,13 +200,15 @@ async function renderAgents() {
   const list = await readOrRetry("agents_list");
   if (!list.ok) { host.innerHTML = '<p class="warn">could not reach the network to read this register — press Load again</p>'; return; }
   const ids = JSON.parse(String(list.value));
-  if (!ids.length) { host.innerHTML = '<p class="muted">no agents registered yet</p>'; return; }
+  const firstClaim = {};
+  if (!ids.length) { host.innerHTML = '<p class="muted">no agents registered yet</p>'; offerAgents([], firstClaim); return; }
   const cards = [];
   for (const id of ids.slice().reverse()) {
     const p = await readOrRetry("passport", [id]); if (!p.ok) continue;
     const a = JSON.parse(String(p.value));
+    firstClaim[a.agent] = (a.claims || [])[0];
     const rows = Object.entries(a.verdicts || {}).map(([c, v]) => `<div class="v ${esc(v)}">${esc(c)} → ${esc(v)}</div><div class="reason">${esc((a.reasons || {})[c] || "")}</div>`).join("");
-    cards.push(`<div class="agent"><div class="head"><span class="name">${esc(a.agent)}</span><span class="badge ${esc(a.status)}">${esc(a.status)}</span></div>
+    cards.push(`<div class="agent"><div class="head"><span class="name" data-pick="${esc(a.agent)}" title="put this agent in the inspect and gate boxes">${esc(a.agent)}</span><span class="badge ${esc(a.status)}">${esc(a.status)}</span></div>
       <div class="mono muted">${esc(a.endpoint)}</div>
       <div class="mono muted">operator ${esc(a.operator)} · inspections ${a.inspections}${a.issued_at_inspection ? " · issued at #" + a.issued_at_inspection : ""}${a.issued_at ? " · issued " + esc(String(a.issued_at).slice(0, 10)) + (a.expired ? " · <b>expired</b>" : " · valid " + a.valid_days + " days") : ""}</div>
       <div class="mono">claims: ${(a.claims || []).map(esc).join(", ")}</div>
@@ -178,8 +217,12 @@ async function renderAgents() {
       ${rows ? `<div class="verdicts">${rows}</div>` : '<p class="fine">not inspected yet</p>'}</div>`);
   }
   host.innerHTML = cards.join("");
+  for (const n of host.querySelectorAll(".name[data-pick]")) n.onclick = () => { pick(n.dataset.pick, firstClaim[n.dataset.pick]); $("iid").scrollIntoView({ behavior: "smooth", block: "center" }); };
+  offerAgents(ids, firstClaim);
 }
 
 paint();
 const saved = (() => { try { return localStorage.getItem("passport_register"); } catch (e) { return null; } })();
-if (saved) { log("loading " + saved + " …"); useRegister(saved); }
+if ($("useDemoReg") && DEMO_REGISTER) { $("useDemoReg").hidden = false; $("useDemoReg").onclick = () => useRegister(DEMO_REGISTER); }
+const first = saved || DEMO_REGISTER;
+if (first) { log("loading " + first + " …"); useRegister(first); }
