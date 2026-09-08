@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Passport · what an AI agent actually does</title>
 <meta name="description" content="An on-chain record of what an AI agent actually does. Independent validators run one public battery and agree in three words per claim.">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='1' x2='1' y2='0'%3E%3Cstop offset='0' stop-color='%23110FFF'/%3E%3Cstop offset='.55' stop-color='%239B6AF6'/%3E%3Cstop offset='1' stop-color='%23E37DF7'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='40' height='40' rx='9' fill='%2305050a'/%3E%3Cpath d='M35.71 26.51 26.51 35.71H13.49L4.29 26.51V13.49L13.49 4.29H26.51L35.71 13.49Z' fill='none' stroke='url(%23g)' stroke-width='2.4'/%3E%3Cpath d='M13 20.5 18 25.5 27.5 14.5' fill='none' stroke='%23fff' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2040%2040'%3E%3Cdefs%3E%3ClinearGradient%20id='g'%20x1='0'%20y1='1'%20x2='1'%20y2='0'%3E%3Cstop%20offset='0'%20stop-color='%23110FFF'/%3E%3Cstop%20offset='.55'%20stop-color='%239B6AF6'/%3E%3Cstop%20offset='1'%20stop-color='%23E37DF7'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect%20width='40'%20height='40'%20rx='9'%20fill='%2305050a'/%3E%3Cpath%20d='M35.71%2026.51%2026.51%2035.71H13.49L4.29%2026.51V13.49L13.49%204.29H26.51L35.71%2013.49Z'%20fill='none'%20stroke='url(%23g)'%20stroke-width='2.4'/%3E%3Cpath%20d='M20.0%2013.8%2026.2%2020.0%2020.0%2026.2%2013.8%2020.0Z'%20fill='%23fff'/%3E%3Ccircle%20cx='20.0'%20cy='8.8'%20r='1.9'%20fill='%23fff'/%3E%3Ccircle%20cx='30.65'%20cy='16.54'%20r='1.9'%20fill='%23fff'/%3E%3Ccircle%20cx='26.58'%20cy='29.06'%20r='1.9'%20fill='%23fff'/%3E%3Ccircle%20cx='13.42'%20cy='29.06'%20r='1.9'%20fill='%23fff'/%3E%3Ccircle%20cx='9.35'%20cy='16.54'%20r='1.9'%20fill='%23fff'/%3E%3C/svg%3E">
 
 <!-- Switzer = GenLayer body typeface (Fontshare). Lineca is the licensed title face:
      if you have it, drop an @font-face for "Lineca" and it takes over every title
@@ -91,24 +91,28 @@ h2 .n{color:var(--purple)}
 
 /* ============================================================ header */
 header{
-  position:sticky;top:0;z-index:50;display:flex;align-items:center;gap:20px;flex-wrap:wrap;
-  padding:16px 0;border-bottom:1px solid var(--line);
-  background:linear-gradient(180deg,rgba(5,5,10,.92),rgba(5,5,10,.62));
-  backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px)
+  position:sticky;top:14px;z-index:50;display:flex;align-items:center;gap:12px;flex-wrap:wrap;
+  padding:0;margin-top:14px;border:0;background:transparent;pointer-events:none
 }
-.brand{display:flex;align-items:center;gap:12px;min-width:0}
-.brand .seal{width:34px;height:34px;flex:none;display:block}
+header>*{pointer-events:auto}
+.pill{display:flex;align-items:center;gap:12px;padding:8px 14px;border-radius:999px;
+  border:1px solid var(--line);background:rgba(8,8,18,.58);
+  backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+  box-shadow:0 1px 0 rgba(255,255,255,.05) inset,0 12px 40px -24px rgba(0,0,0,.9)}
+.brand{min-width:0;padding-left:10px}
+.brand .seal{width:30px;height:30px;flex:none;display:block}
 header h1{
-  font-family:var(--font-title);font-size:23px;font-weight:600;letter-spacing:-.015em;line-height:1;margin:0
+  font-family:var(--font-title);font-size:21px;font-weight:600;letter-spacing:-.015em;line-height:1;margin:0
 }
 header .tag{
   font-family:var(--mono);font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-3);
   padding-left:14px;margin-left:2px;border-left:1px solid var(--line)
 }
-header nav{display:flex;gap:20px;margin-left:8px}
-header nav a{font-size:13.5px;color:var(--ink-3);border:0}
-header nav a:hover{color:var(--ink)}
-header .right{margin-left:auto;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+header nav{gap:4px;padding:6px 8px}
+header nav a{font-size:13.5px;color:var(--ink-3);border:0;padding:6px 12px;border-radius:999px;transition:background .2s,color .2s}
+header nav a:hover{color:var(--ink);background:rgba(255,255,255,.08)}
+header .right{margin-left:auto;gap:10px;padding:6px}
+header .right button{padding-top:10px;padding-bottom:10px}
 #who{max-width:190px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
   padding:6px 11px;border:1px solid var(--line);border-radius:999px;font-size:12px}
 #who:empty{display:none}
@@ -349,7 +353,7 @@ html.anim .rv:not(.in){opacity:0;transform:translateY(14px)}
         <stop offset="0" stop-color="#110FFF"/><stop offset=".55" stop-color="#9B6AF6"/><stop offset="1" stop-color="#E37DF7"/>
       </linearGradient></defs>
       <path d="M35.71 26.51 26.51 35.71H13.49L4.29 26.51V13.49L13.49 4.29H26.51L35.71 13.49Z" fill="none" stroke="url(#bg1)" stroke-width="2.2"/>
-      <path d="M13 20.5 18 25.5 27.5 14.5" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M20.0 13.4 26.6 20.0 20.0 26.6 13.4 20.0Z" fill="#fff"/><circle cx="20.0" cy="8.8" r="1.7" fill="#fff"/><circle cx="30.65" cy="16.54" r="1.7" fill="#fff"/><circle cx="26.58" cy="29.06" r="1.7" fill="#fff"/><circle cx="13.42" cy="29.06" r="1.7" fill="#fff"/><circle cx="9.35" cy="16.54" r="1.7" fill="#fff"/>
     </svg>
     <div class="ring"></div>
     <div class="t">loading the register</div>
@@ -365,23 +369,23 @@ html.anim .rv:not(.in){opacity:0;transform:translateY(14px)}
 
 <div class="wrap">
 <header>
-  <div class="brand">
+  <div class="brand pill">
     <svg class="seal" viewBox="0 0 40 40" aria-hidden="true">
       <defs><linearGradient id="sg" x1="0" y1="1" x2="1" y2="0">
         <stop offset="0" stop-color="#110FFF"/><stop offset=".55" stop-color="#9B6AF6"/><stop offset="1" stop-color="#E37DF7"/>
       </linearGradient></defs>
       <path d="M35.71 26.51 26.51 35.71H13.49L4.29 26.51V13.49L13.49 4.29H26.51L35.71 13.49Z" fill="none" stroke="url(#sg)" stroke-width="2.2"/>
-      <path d="M13 20.5 18 25.5 27.5 14.5" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M20.0 13.4 26.6 20.0 20.0 26.6 13.4 20.0Z" fill="#fff"/><circle cx="20.0" cy="8.8" r="1.7" fill="#fff"/><circle cx="30.65" cy="16.54" r="1.7" fill="#fff"/><circle cx="26.58" cy="29.06" r="1.7" fill="#fff"/><circle cx="13.42" cy="29.06" r="1.7" fill="#fff"/><circle cx="9.35" cy="16.54" r="1.7" fill="#fff"/>
     </svg>
     <h1>Passport</h1>
+    <span class="tag">what an AI agent actually does</span>
   </div>
-  <span class="tag">what an AI agent actually does</span>
-  <nav>
+  <nav class="pill">
     <a href="#how">How it works</a>
     <a href="#passports">Passports</a>
     <a href="#battery-sec">The battery</a>
   </nav>
-  <div class="right">
+  <div class="right pill">
     <span id="who" class="mono muted"></span>
     <button id="connect" class="primary">Connect wallet</button>
     <button id="faucet" disabled>Get test GEN</button>
@@ -418,7 +422,7 @@ html.anim .rv:not(.in){opacity:0;transform:translateY(14px)}
           <stop offset="0" stop-color="#110FFF"/><stop offset=".55" stop-color="#9B6AF6"/><stop offset="1" stop-color="#E37DF7"/>
         </linearGradient></defs>
         <path d="M35.71 26.51 26.51 35.71H13.49L4.29 26.51V13.49L13.49 4.29H26.51L35.71 13.49Z" fill="none" stroke="url(#fg)" stroke-width="1.5"/>
-        <path d="M13 20.5 18 25.5 27.5 14.5" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M20.0 13.4 26.6 20.0 20.0 26.6 13.4 20.0Z" fill="#fff"/><circle cx="20.0" cy="8.8" r="1.7" fill="#fff"/><circle cx="30.65" cy="16.54" r="1.7" fill="#fff"/><circle cx="26.58" cy="29.06" r="1.7" fill="#fff"/><circle cx="13.42" cy="29.06" r="1.7" fill="#fff"/><circle cx="9.35" cy="16.54" r="1.7" fill="#fff"/>
       </svg>
     </div>
     <canvas id="seal3d" aria-hidden="true"></canvas>
@@ -968,29 +972,18 @@ if (stage && canvas && !matchMedia("(prefers-reduced-motion: reduce)").matches) 
     const seal = new THREE.Group();
     seal.add(ring);
 
-    // the check, on both faces so the back is never blank
+    // the verdict in the middle: one octahedron, white, turning on its own
     const white = new THREE.MeshBasicMaterial({ color: 0xffffff });
-    const shortArm = new THREE.BoxGeometry(0.95, 0.26, 0.12);
-    const longArm = new THREE.BoxGeometry(1.98, 0.26, 0.12);
-    function check(z, flip) {
-      const g = new THREE.Group();
-      const s = new THREE.Mesh(shortArm, white);
-      s.position.set(-0.675, -0.2, 0); s.rotation.z = -0.82;
-      const l = new THREE.Mesh(longArm, white);
-      l.position.set(0.3, 0.2, 0); l.rotation.z = 0.855;
-      g.add(s, l);
-      g.position.z = z;
-      if (flip) g.rotation.y = Math.PI;   // reads as a check from the back too
-      return g;
-    }
-    seal.add(check(0.2, false), check(-0.2, true));
+    const core = new THREE.Mesh(new THREE.OctahedronGeometry(0.62, 0), white);
+    seal.add(core);
 
-    // five validators on one orbit
+    // five validators on one orbit, inside the ring — the same five dots as the flat mark
     const nodes = [];
-    const nodeGeo = new THREE.OctahedronGeometry(0.17, 0);
+    const nodeGeo = new THREE.OctahedronGeometry(0.15, 0);
+    const ORBIT = 1.3;
     for (let i = 0; i < 5; i++) {
-      const m = new THREE.Mesh(nodeGeo, new THREE.MeshBasicMaterial({ color: 0xffffff }));
-      m.userData.phase = (i / 5) * Math.PI * 2;
+      const m = new THREE.Mesh(nodeGeo, white);
+      m.userData.phase = (i / 5) * Math.PI * 2 - Math.PI / 2;
       nodes.push(m);
       seal.add(m);
     }
@@ -998,12 +991,11 @@ if (stage && canvas && !matchMedia("(prefers-reduced-motion: reduce)").matches) 
       new THREE.BufferGeometry().setFromPoints(
         Array.from({ length: 65 }, (_, i) => {
           const a = (i / 64) * Math.PI * 2;
-          return new THREE.Vector3(Math.cos(a) * 3.15, 0, Math.sin(a) * 3.15);
+          return new THREE.Vector3(Math.cos(a) * ORBIT, Math.sin(a) * ORBIT, 0);
         })
       ),
-      new THREE.LineBasicMaterial({ color: 0x9b6af6, transparent: true, opacity: 0.28 })
+      new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.22 })
     );
-    orbit.rotation.x = 1.28;
     seal.add(orbit);
 
     seal.rotation.x = 0.24;
@@ -1039,10 +1031,13 @@ if (stage && canvas && !matchMedia("(prefers-reduced-motion: reduce)").matches) 
       px += (tx - px) * 0.05; py += (ty - py) * 0.05;
       seal.rotation.y = t * 0.28 + px;
       seal.rotation.x = 0.24 + py;
+      core.rotation.y = -t * 0.9; core.rotation.x = t * 0.35;
       for (let i = 0; i < nodes.length; i++) {
         const a = nodes[i].userData.phase + t * 0.42;
-        nodes[i].position.set(Math.cos(a) * 3.15, Math.sin(a * 1.6) * 0.34, Math.sin(a) * 3.15);
-        nodes[i].scale.setScalar(0.9 + Math.sin(t * 1.7 + i) * 0.16);
+        // the five stay in the ring's plane, like the flat mark; a little depth so they read as solids
+        nodes[i].position.set(Math.cos(a) * ORBIT, Math.sin(a) * ORBIT, Math.sin(a * 2 + i) * 0.14);
+        nodes[i].rotation.y = t * 1.2 + i;
+        nodes[i].scale.setScalar(0.9 + Math.sin(t * 1.7 + i) * 0.12);
       }
       renderer.render(scene, camera);
     }
