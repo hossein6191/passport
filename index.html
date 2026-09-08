@@ -4,60 +4,383 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Passport · what an AI agent actually does</title>
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230f172a'/%3E%3Cpath d='M9 17l4 4 10-10' stroke='%23f4c542' stroke-width='3.2' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<meta name="description" content="An on-chain record of what an AI agent actually does. Independent validators run one public battery and agree in three words per claim.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='1' x2='1' y2='0'%3E%3Cstop offset='0' stop-color='%23110FFF'/%3E%3Cstop offset='.55' stop-color='%239B6AF6'/%3E%3Cstop offset='1' stop-color='%23E37DF7'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='40' height='40' rx='9' fill='%2305050a'/%3E%3Cpath d='M35.71 26.51 26.51 35.71H13.49L4.29 26.51V13.49L13.49 4.29H26.51L35.71 13.49Z' fill='none' stroke='url(%23g)' stroke-width='2.4'/%3E%3Cpath d='M13 20.5 18 25.5 27.5 14.5' fill='none' stroke='%23fff' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+
+<!-- Switzer = GenLayer body typeface (Fontshare). Lineca is the licensed title face:
+     if you have it, drop an @font-face for "Lineca" and it takes over every title
+     automatically through --font-title. -->
+<link rel="preconnect" href="https://api.fontshare.com" crossorigin>
+<link rel="stylesheet" href="https://api.fontshare.com/v2/css?f%5B%5D=switzer@300,400,500,600,700&display=swap">
+
 <style>
-:root{--paper:#f6f1e7;--ink:#161616;--ink-2:#4a4a4a;--ink-3:#8a8479;--line:#d8cfbd;--card:#fffdf8;--accent:#0f172a;--gold:#c99a1e;--ok:#1f7a3f;--bad:#b3261e;--open:#8a6d1f;--okbg:#e8f4ea;--badbg:#fbe9e7;--openbg:#faf1d6}
+/* ============================================================ brand tokens */
+:root{
+  /* GenLayer palette — Brand Guidelines v1.0 */
+  --blue:#110FFF; --purple:#9B6AF6; --pink:#E37DF7; --navy:#282B5D;
+  --black:#000; --white:#fff;
+  --grad:linear-gradient(103deg,var(--blue) 0%,var(--purple) 52%,var(--pink) 100%);
+
+  --bg:#05050a; --bg-2:#0a0a16;
+  --ink:#fff; --ink-2:rgba(255,255,255,.74); --ink-3:rgba(255,255,255,.5);
+  --line:rgba(255,255,255,.1); --line-2:rgba(255,255,255,.2);
+  --card:rgba(255,255,255,.035);
+  --card-2:rgba(8,8,18,.66);
+
+  --ok:#6fe3a8; --bad:#ff8478; --open:#ffd177;
+  --okbg:rgba(111,227,168,.12); --badbg:rgba(255,132,120,.12); --openbg:rgba(255,209,119,.12);
+
+  --font-title:"Lineca","Switzer","Helvetica Neue",Arial,sans-serif;
+  --font:"Switzer","Helvetica Neue",Arial,sans-serif;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  --r:14px; --r-s:10px;
+  --ease:cubic-bezier(.785,.135,.15,.86);
+}
 *{box-sizing:border-box}
-html{background:var(--paper)}
-body{margin:0;font:15.5px/1.6 "Iowan Old Style","Palatino Linotype",Georgia,serif;color:var(--ink);background:var(--paper)}
-.wrap{max-width:1040px;margin:0 auto;padding:0 22px}
-header{border-bottom:2px solid var(--ink);padding:22px 0 14px;display:flex;align-items:baseline;gap:18px;flex-wrap:wrap}
-header h1{font:700 30px/1 "Iowan Old Style",Georgia,serif;letter-spacing:-.01em;margin:0}
-header .tag{font:12px/1 ui-monospace,Menlo,monospace;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-3)}
-header .right{margin-left:auto;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
-.hero{padding:34px 0 18px}
-.hero p.lede{font-size:21px;line-height:1.45;max-width:760px;margin:0 0 12px}
-.hero p.note{color:var(--ink-2);max-width:760px;margin:0}
-.grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}
-@media (max-width:820px){.grid{grid-template-columns:1fr}}
-section{margin:22px 0}
-h2{font:700 13px/1 ui-monospace,Menlo,monospace;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-3);margin:0 0 12px;padding-bottom:8px;border-bottom:1px solid var(--line)}
-.card{background:var(--card);border:1px solid var(--line);border-radius:6px;padding:18px 20px;box-shadow:0 1px 0 #e9e1d0}
-label{display:block;font:12px/1.2 ui-monospace,Menlo,monospace;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3);margin:12px 0 6px}
-input[type=text]{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:5px;background:#fff;font:14px ui-monospace,Menlo,monospace;color:var(--ink)}
-input[type=text]:focus{outline:2px solid var(--gold);outline-offset:1px}
-.claims{display:flex;flex-wrap:wrap;gap:8px}
-.claims label{display:inline-flex;align-items:center;gap:7px;margin:0;padding:7px 11px;border:1px solid var(--line);border-radius:999px;background:#fff;text-transform:none;letter-spacing:0;font:13.5px ui-monospace,Menlo,monospace;color:var(--ink);cursor:pointer}
-.claims label:has(input:checked){background:var(--accent);color:#fff;border-color:var(--accent)}
-.claims input{accent-color:var(--gold)}
-button{font:600 14px "Iowan Old Style",Georgia,serif;padding:10px 16px;border-radius:5px;border:1.5px solid var(--ink);background:#fff;color:var(--ink);cursor:pointer}
-button.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
-button:disabled{opacity:.45;cursor:not-allowed}
-.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
-.mono{font:13px ui-monospace,Menlo,monospace}
+html{background:var(--bg);-webkit-text-size-adjust:100%}
+body{
+  margin:0;font-family:var(--font);font-size:16px;line-height:1.62;font-weight:400;
+  color:var(--ink);background:var(--bg);overflow-x:hidden;
+  -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;
+}
+a{color:var(--ink);text-decoration:none;border-bottom:1px solid rgba(255,255,255,.28);transition:border-color .2s,color .2s}
+a:hover{color:var(--pink);border-color:var(--pink)}
+::selection{background:var(--purple);color:#fff}
+
+/* ============================================================ background */
+.bg{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden;background:
+  radial-gradient(1200px 700px at 78% -10%,rgba(155,106,246,.22),transparent 62%),
+  radial-gradient(1000px 620px at 8% 6%,rgba(17,15,255,.24),transparent 60%),
+  radial-gradient(900px 700px at 50% 108%,rgba(227,125,247,.14),transparent 64%),
+  linear-gradient(180deg,#05050a 0%,#07071a 42%,#05050a 100%)}
+.bg .blob{position:absolute;border-radius:50%;filter:blur(90px);opacity:.5;will-change:transform}
+.bg .b1{width:46vw;height:46vw;left:-10vw;top:-8vw;background:radial-gradient(circle,rgba(17,15,255,.55),transparent 68%);animation:drift1 46s var(--ease) infinite alternate}
+.bg .b2{width:40vw;height:40vw;right:-8vw;top:18vh;background:radial-gradient(circle,rgba(227,125,247,.4),transparent 68%);animation:drift2 58s var(--ease) infinite alternate}
+@keyframes drift1{to{transform:translate3d(9vw,7vh,0) scale(1.14)}}
+@keyframes drift2{to{transform:translate3d(-7vw,-6vh,0) scale(1.1)}}
+#flow-canvas{position:absolute;inset:0;width:100%;height:100%;opacity:.85}
+/* the grain sits inside the backdrop layer, never over the content */
+.dither{position:absolute;inset:0;z-index:2;pointer-events:none;opacity:.06;
+  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 2 2' xmlns='http://www.w3.org/2000/svg'%3E%3Crect width='1' height='1' fill='%23ffffff'/%3E%3Crect x='1' y='1' width='1' height='1' fill='%23ffffff'/%3E%3C/svg%3E");
+  background-size:2px 2px}
+.grain-off .bg .blob{animation:none}
+
+/* ============================================================ shell */
+.wrap{position:relative;z-index:1;max-width:1160px;margin:0 auto;padding:0 28px}
+section{margin:64px 0}
+h2{
+  font-family:var(--mono);font-size:11.5px;font-weight:500;letter-spacing:.18em;text-transform:uppercase;
+  color:var(--ink-3);margin:0 0 16px;padding-bottom:12px;border-bottom:1px solid var(--line);
+  display:flex;align-items:baseline;gap:10px
+}
+h2 .n{color:var(--purple)}
+/* solid-ish, not blurred: a dozen backdrop-filters is the one thing that would
+   actually cost the visitor's GPU, and the panel reads the same without it */
+.card{
+  background:linear-gradient(180deg,rgba(20,20,38,.72),rgba(9,9,20,.78));
+  border:1px solid var(--line);border-radius:var(--r);padding:22px 24px;
+  box-shadow:0 1px 0 rgba(255,255,255,.05) inset,0 24px 60px -40px rgba(0,0,0,.9)
+}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:22px}
+.row{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+.mono{font-family:var(--mono);font-size:13px}
 .muted{color:var(--ink-3)}
-.agent{border-top:1px solid var(--line);padding:14px 0}
-.agent:first-child{border-top:0;padding-top:0}
-.agent .head{display:flex;justify-content:space-between;gap:12px;align-items:baseline;flex-wrap:wrap}
-.agent .name{font-weight:700;font-size:18px}
-.badge{font:12px/1 ui-monospace,Menlo,monospace;letter-spacing:.1em;text-transform:uppercase;padding:5px 9px;border-radius:4px}
-.badge.issued{background:var(--okbg);color:var(--ok)}.badge.refused{background:var(--badbg);color:var(--bad)}.badge.pending,.badge.unverified{background:var(--openbg);color:var(--open)}.badge.withdrawn{background:#eee;color:#666}
-.verdicts{display:grid;grid-template-columns:auto 1fr;gap:4px 14px;margin:10px 0 0;font-size:14px}
-.verdicts .v{font:13px ui-monospace,Menlo,monospace}
-.v.matches{color:var(--ok)}.v.contradicts{color:var(--bad)}.v.inconclusive{color:var(--open)}
-.reason{color:var(--ink-2);font-size:13.5px}
-pre{background:#161616;color:#e9e4d8;border-radius:6px;padding:12px 14px;font:12.5px/1.55 ui-monospace,Menlo,monospace;white-space:pre-wrap;word-break:break-word;max-height:300px;overflow:auto;margin:0}
-.st{font-size:13.5px;color:var(--ink-2);margin-top:8px;min-height:1.4em}
+.fine{font-size:13.5px;line-height:1.6;color:var(--ink-3)}
 .warn{color:var(--bad)}
-.fine{font-size:13px;color:var(--ink-3)}
-footer{border-top:1px solid var(--line);margin-top:40px;padding:18px 0 40px;color:var(--ink-3);font-size:13px}
-a{color:inherit}
+.st{font-size:13.5px;color:var(--ink-2);margin-top:12px;min-height:1.4em;word-break:break-word}
+
+/* ============================================================ header */
+header{
+  position:sticky;top:0;z-index:50;display:flex;align-items:center;gap:20px;flex-wrap:wrap;
+  padding:16px 0;border-bottom:1px solid var(--line);
+  background:linear-gradient(180deg,rgba(5,5,10,.92),rgba(5,5,10,.62));
+  backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px)
+}
+.brand{display:flex;align-items:center;gap:12px;min-width:0}
+.brand .seal{width:34px;height:34px;flex:none;display:block}
+header h1{
+  font-family:var(--font-title);font-size:23px;font-weight:600;letter-spacing:-.015em;line-height:1;margin:0
+}
+header .tag{
+  font-family:var(--mono);font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-3);
+  padding-left:14px;margin-left:2px;border-left:1px solid var(--line)
+}
+header nav{display:flex;gap:20px;margin-left:8px}
+header nav a{font-size:13.5px;color:var(--ink-3);border:0}
+header nav a:hover{color:var(--ink)}
+header .right{margin-left:auto;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+#who{max-width:190px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  padding:6px 11px;border:1px solid var(--line);border-radius:999px;font-size:12px}
+#who:empty{display:none}
+@media (max-width:1180px){header nav{display:none}}
+@media (max-width:980px){header .tag{display:none}header h1{font-size:20px}}
+
+/* ============================================================ buttons — arrow-fill */
+button{
+  font-family:var(--font);font-size:14.5px;font-weight:500;line-height:1;cursor:pointer;white-space:nowrap;
+  padding:12px 20px;border-radius:999px;border:1px solid var(--line-2);
+  background:rgba(255,255,255,.04);color:var(--ink);
+  transition:background .25s,border-color .25s,color .25s,transform .18s var(--ease);
+}
+button:hover{background:rgba(255,255,255,.1);border-color:var(--line-2)}
+button:active{transform:scale(.975)}
+button:disabled{opacity:.38;cursor:not-allowed;transform:none}
+button:focus-visible{outline:2px solid var(--purple);outline-offset:2px}
+
+button.primary{position:relative;overflow:hidden;border:1px solid transparent;background:var(--grad);color:#fff;
+  padding:12px 48px 12px 22px;isolation:isolate}
+button.primary:hover{background:var(--grad)}
+button.primary .lbl{position:relative;z-index:2}
+button.primary .fill{position:absolute;z-index:1;border-radius:999px;background:#fff;
+  top:5px;bottom:5px;right:5px;left:calc(100% - 5px - 30px);
+  transition:inset .45s var(--ease),background .45s var(--ease)}
+button.primary .lbl-fill{position:absolute;z-index:3;inset:0;display:flex;align-items:center;
+  padding:0 48px 0 22px;color:var(--blue);pointer-events:none;
+  clip-path:inset(5px 5px 5px calc(100% - 35px));transition:clip-path .45s var(--ease)}
+button.primary .knob{position:absolute;z-index:4;right:5px;top:50%;transform:translateY(-50%);
+  width:30px;height:30px;border-radius:50%;background:#fff;color:var(--blue);overflow:hidden;
+  display:grid;place-items:center;pointer-events:none}
+button.primary .knob svg{position:absolute;width:15px;height:15px;transition:transform .45s var(--ease)}
+button.primary .knob .a1{transform:translateX(-170%) scale(0)}
+button.primary .knob .a2{transform:translateX(0) scale(1)}
+button.primary:hover:not(:disabled) .fill{left:5px}
+button.primary:hover:not(:disabled) .lbl-fill{clip-path:inset(0 0 0 0)}
+button.primary:hover:not(:disabled) .knob .a1{transform:translateX(0) scale(1)}
+button.primary:hover:not(:disabled) .knob .a2{transform:translateX(170%) scale(0)}
+button.primary:disabled .fill,button.primary:disabled .lbl-fill,button.primary:disabled .knob{opacity:.9}
+
+/* spinner inside any button */
+button .spin{display:none;width:14px;height:14px;margin-right:8px;vertical-align:-2px;flex:none}
+button.is-busy .spin{display:inline-block}
+button.is-busy .lbl-fill,button.is-busy .knob{opacity:.25}
+.spin{border-radius:50%;background:conic-gradient(from 0deg,transparent 0%,currentColor 92%);
+  -webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 2.5px),#000 0);
+  mask:radial-gradient(farthest-side,transparent calc(100% - 2.5px),#000 0);
+  animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(1turn)}}
+button.primary .spin{color:#fff}
+
+/* ============================================================ inputs */
+label{display:block;font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--ink-3);margin:18px 0 8px}
+input[type=text]{
+  width:100%;padding:12px 14px;border-radius:var(--r-s);border:1px solid var(--line);
+  background:rgba(0,0,0,.35);color:var(--ink);font-family:var(--mono);font-size:13.5px;
+  transition:border-color .2s,box-shadow .2s,background .2s
+}
+input[type=text]::placeholder{color:rgba(255,255,255,.32)}
+input[type=text]:hover{border-color:var(--line-2)}
+input[type=text]:focus{outline:0;border-color:var(--purple);background:rgba(0,0,0,.5);
+  box-shadow:0 0 0 3px rgba(155,106,246,.18)}
+
+.claims{display:flex;flex-wrap:wrap;gap:9px}
+.claims label{
+  display:inline-flex;align-items:center;gap:8px;margin:0;padding:8px 13px;border-radius:999px;
+  border:1px solid var(--line);background:rgba(255,255,255,.03);cursor:pointer;
+  font-family:var(--mono);font-size:12.5px;letter-spacing:0;text-transform:none;color:var(--ink-2);
+  transition:background .2s,border-color .2s,color .2s
+}
+.claims label:hover{border-color:var(--line-2);color:var(--ink)}
+.claims label:has(input:checked){background:var(--grad);border-color:transparent;color:#fff;font-weight:500}
+.claims input{accent-color:var(--pink);width:13px;height:13px;margin:0}
+
+/* ============================================================ hero */
+.hero{display:grid;grid-template-columns:1.15fr .85fr;gap:44px;align-items:center;
+  padding:74px 0 40px;min-height:min(78vh,720px)}
+@media (max-width:940px){.hero{grid-template-columns:1fr;gap:30px;padding:48px 0 24px;min-height:0}
+  .grid{grid-template-columns:1fr}}
+.eyebrow{display:inline-flex;align-items:center;gap:10px;padding:7px 14px 7px 10px;border-radius:999px;
+  border:1px solid var(--line);background:rgba(255,255,255,.04);
+  font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-2);margin-bottom:26px}
+.eyebrow .glmark{width:15px;height:15px;display:block;opacity:.9}
+.hero-title{font-family:var(--font-title);font-size:clamp(52px,7.6vw,104px);font-weight:600;
+  letter-spacing:-.035em;line-height:.94;margin:0 0 8px;perspective:900px}
+.hero-title .ltr{display:inline-block;position:relative;cursor:pointer;will-change:transform;
+  transform-style:preserve-3d;background:linear-gradient(180deg,#fff 42%,rgba(255,255,255,.68));
+  -webkit-background-clip:text;background-clip:text;color:transparent}
+.hero-sub{font-family:var(--mono);font-size:12px;letter-spacing:.24em;text-transform:uppercase;
+  color:var(--purple);margin:0 0 26px}
+.hero p.lede{font-size:21.5px;line-height:1.44;font-weight:400;color:var(--ink);max-width:640px;margin:0 0 16px;text-wrap:pretty}
+.hero p.note{font-size:15.5px;color:var(--ink-2);max-width:620px;margin:0;text-wrap:pretty}
+.hero p.note em{color:var(--open);font-style:italic}
+.hero-cta{display:flex;gap:12px;flex-wrap:wrap;margin-top:30px}
+.hero-cta a{border:0}
+.ghost-link{display:inline-flex;align-items:center;gap:8px;padding:12px 20px;border-radius:999px;
+  border:1px solid var(--line-2);font-size:14.5px;font-weight:500;color:var(--ink);transition:background .2s,border-color .2s}
+.ghost-link:hover{background:rgba(255,255,255,.08);color:var(--ink);border-color:var(--line-2)}
+
+/* 3D stage */
+.stage{position:relative;aspect-ratio:1/1;width:100%;max-width:480px;max-height:480px;
+  margin:0 auto;display:grid;place-items:center}
+.stage canvas{width:100%;height:100%;display:block}
+.stage .fallback{position:absolute;inset:0;display:grid;place-items:center;transition:opacity .6s}
+.stage.live .fallback{opacity:0}
+.stage .fallback svg{width:58%;height:58%;filter:drop-shadow(0 14px 60px rgba(155,106,246,.4))}
+.stage .ring{position:absolute;inset:8%;border-radius:50%;border:1px solid rgba(255,255,255,.07)}
+.stage .ring:nth-child(2){inset:20%;border-color:rgba(155,106,246,.14)}
+.stage-cap{position:absolute;bottom:2px;left:50%;transform:translateX(-50%);white-space:nowrap;
+  font-family:var(--mono);font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-3)}
+
+/* ============================================================ timeline (flow) */
+.flow{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 40px}
+@media (max-width:760px){.flow{grid-template-columns:1fr}}
+.step{display:flex;gap:14px}
+.step .rail{display:flex;flex-direction:column;align-items:center;flex:none}
+.step .dot{width:26px;height:26px;flex:none;border-radius:50%;display:grid;place-items:center;
+  border:1px solid var(--line-2);background:rgba(255,255,255,.04);color:var(--ink-3)}
+.step.done .dot{background:var(--grad);border-color:transparent;color:#fff}
+.step .bar{width:1.5px;flex:1 1 auto;min-height:26px;background:var(--line);margin:4px 0}
+.step.done .bar{background:linear-gradient(180deg,var(--purple),rgba(155,106,246,.2))}
+.step .txt{padding-bottom:26px;min-width:0}
+.step .txt h3{font-size:15.5px;font-weight:600;margin:2px 0 4px;letter-spacing:-.01em}
+.step .txt p{margin:0;font-size:14px;color:var(--ink-2);text-wrap:pretty}
+.step .txt .when{font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3)}
+
+/* ============================================================ passports */
+.agent{border-top:1px solid var(--line);padding:20px 0}
+.agent:first-child{border-top:0;padding-top:2px}
+.agent .head{display:flex;justify-content:space-between;gap:14px;align-items:center;flex-wrap:wrap;margin-bottom:8px}
+.agent .name{font-size:19px;font-weight:600;letter-spacing:-.015em}
+.agent .mono{color:var(--ink-3);word-break:break-all;display:block;margin:2px 0}
+.agent .mono b{color:var(--ink-2)}
+.badge{display:inline-flex;align-items:center;gap:7px;padding:6px 12px;border-radius:999px;
+  font-family:var(--mono);font-size:11px;font-weight:500;letter-spacing:.12em;text-transform:uppercase}
+.badge::before{content:"";width:13px;height:13px;flex:none;background:currentColor;
+  -webkit-mask-size:contain;mask-size:contain;-webkit-mask-repeat:no-repeat;mask-repeat:no-repeat;-webkit-mask-position:center;mask-position:center}
+.badge.issued{background:var(--okbg);color:var(--ok)}
+.badge.issued::before{-webkit-mask-image:var(--i-check);mask-image:var(--i-check)}
+.badge.refused{background:var(--badbg);color:var(--bad)}
+.badge.refused::before{-webkit-mask-image:var(--i-x);mask-image:var(--i-x)}
+.badge.pending,.badge.unverified{background:var(--openbg);color:var(--open)}
+.badge.pending::before,.badge.unverified::before{-webkit-mask-image:var(--i-clock);mask-image:var(--i-clock)}
+.badge.withdrawn{background:rgba(255,255,255,.07);color:var(--ink-3)}
+.badge.withdrawn::before{-webkit-mask-image:var(--i-dash);mask-image:var(--i-dash)}
+:root{
+  --i-check:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='9'/%3E%3Cpath d='m8 12 3 3 5-6'/%3E%3C/svg%3E");
+  --i-x:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='3' stroke-linecap='round'%3E%3Ccircle cx='12' cy='12' r='9'/%3E%3Cpath d='m9 9 6 6M15 9l-6 6'/%3E%3C/svg%3E");
+  --i-clock:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='9'/%3E%3Cpath d='M12 7.5V12l3 2'/%3E%3C/svg%3E");
+  --i-dash:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='3' stroke-linecap='round'%3E%3Ccircle cx='12' cy='12' r='9'/%3E%3Cpath d='M8 12h8'/%3E%3C/svg%3E");
+}
+.verdicts{display:grid;grid-template-columns:auto 1fr;gap:6px 18px;margin:14px 0 0;align-items:baseline}
+.verdicts .v{font-family:var(--mono);font-size:12.5px;display:flex;align-items:center;gap:8px;white-space:nowrap}
+.verdicts .v::before{content:"";width:12px;height:12px;flex:none;background:currentColor;
+  -webkit-mask-size:contain;mask-size:contain;-webkit-mask-repeat:no-repeat;mask-repeat:no-repeat}
+.v.matches{color:var(--ok)}.v.matches::before{-webkit-mask-image:var(--i-check);mask-image:var(--i-check)}
+.v.contradicts{color:var(--bad)}.v.contradicts::before{-webkit-mask-image:var(--i-x);mask-image:var(--i-x)}
+.v.inconclusive{color:var(--open)}.v.inconclusive::before{-webkit-mask-image:var(--i-clock);mask-image:var(--i-clock)}
+.reason{color:var(--ink-3);font-size:13.5px;line-height:1.5}
+#agents>p{margin:0}
+
+/* ============================================================ tool-group panels */
+.panel{border:1px solid var(--line);border-radius:var(--r);background:var(--card-2);overflow:hidden}
+.panel>.bar{display:flex;align-items:center;gap:10px;width:100%;padding:13px 16px;border:0;border-radius:0;
+  background:rgba(255,255,255,.03);color:var(--ink-2);font-family:var(--mono);font-size:12px;letter-spacing:.08em;
+  text-transform:uppercase;text-align:left}
+.panel>.bar:hover{background:rgba(255,255,255,.07)}
+.panel>.bar .chev{width:13px;height:13px;flex:none;transition:transform .2s;color:var(--ink-3)}
+.panel.open>.bar .chev{transform:rotate(90deg)}
+.panel>.bar .count{margin-left:auto;color:var(--ink-3);letter-spacing:.04em;text-transform:none;font-size:11.5px}
+.panel .body{max-height:0;overflow:hidden;transition:max-height .35s var(--ease)}
+.panel.open .body{max-height:360px;overflow:auto}
+pre{margin:0;padding:16px;background:transparent;color:var(--ink-2);
+  font-family:var(--mono);font-size:12.5px;line-height:1.7;white-space:pre-wrap;word-break:break-word}
+pre b{color:var(--ink)}
+#log{color:var(--ink-2)}
+#log a{border-bottom-color:rgba(255,255,255,.2)}
+
+.logbar{display:flex;align-items:center;gap:10px}
+.logbar .live{display:none;align-items:center;gap:7px;color:var(--purple);text-transform:none;letter-spacing:.04em}
+.logbar.busy .live{display:inline-flex}
+.logbar .live .spin{width:12px;height:12px}
+.shimmer{background:linear-gradient(90deg,var(--ink-3) 0%,var(--ink-3) 40%,#fff 50%,var(--ink-3) 60%,var(--ink-3) 100%);
+  background-size:250% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;
+  animation:shim 2s linear infinite}
+@keyframes shim{from{background-position:100% center}to{background-position:0 center}}
+
+/* ============================================================ gate composer */
+.gate{border:1px solid var(--line);border-radius:var(--r);background:rgba(0,0,0,.32);padding:12px;
+  transition:border-color .2s,box-shadow .2s}
+.gate:focus-within{border-color:var(--purple);box-shadow:0 0 0 3px rgba(155,106,246,.16)}
+.gate .fields{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.gate input[type=text]{flex:1 1 130px;border:0;background:transparent;padding:8px 6px}
+.gate input[type=text]:focus{box-shadow:none;background:transparent}
+.gate .sep{width:1px;align-self:stretch;background:var(--line)}
+#gate{width:38px;height:38px;padding:0;flex:none;display:grid;place-items:center;border:0;
+  background:var(--grad);color:#fff}
+#gate svg{width:16px;height:16px}
+#gate:hover{filter:brightness(1.12)}
+#gateSt{font-family:var(--mono);font-size:12.5px}
+#gateSt:empty{display:none}
+
+/* ============================================================ footer */
+footer{position:relative;z-index:1;border-top:1px solid var(--line);margin-top:80px;padding:34px 0 60px;
+  color:var(--ink-3);font-size:13.5px;display:flex;gap:22px;align-items:center;flex-wrap:wrap}
+footer .glwm{height:17px;width:auto;opacity:.68;flex:none}
+footer .built{max-width:620px}
+
+/* ============================================================ boot spinner */
+#boot{position:fixed;inset:0;z-index:200;background:var(--bg);display:grid;place-items:center;
+  transition:opacity .5s ease,visibility .5s}
+#boot.gone{opacity:0;visibility:hidden}
+#boot .inner{display:grid;place-items:center;gap:18px}
+#boot .ring{width:44px;height:44px;border-radius:50%;
+  background:conic-gradient(from 0deg,transparent 0%,var(--purple) 55%,var(--pink) 95%);
+  -webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 3px),#000 0);
+  mask:radial-gradient(farthest-side,transparent calc(100% - 3px),#000 0);
+  animation:spin .9s linear infinite}
+#boot .t{font-family:var(--mono);font-size:11px;letter-spacing:.24em;text-transform:uppercase;color:var(--ink-3)}
+
+/* ============================================================ reveal */
+.rv{transition:opacity .7s var(--ease),transform .7s var(--ease)}
+html.anim .rv:not(.in){opacity:0;transform:translateY(14px)}
+.rv.in{opacity:1;transform:none}
+@media (prefers-reduced-motion:reduce){
+  *{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.05s!important}
+  html.anim .rv:not(.in){opacity:1;transform:none}
+}
 </style>
 </head>
 <body>
+
+<div id="boot" role="status" aria-live="polite">
+  <div class="inner">
+    <svg class="seal" width="40" height="40" viewBox="0 0 40 40" aria-hidden="true">
+      <defs><linearGradient id="bg1" x1="0" y1="1" x2="1" y2="0">
+        <stop offset="0" stop-color="#110FFF"/><stop offset=".55" stop-color="#9B6AF6"/><stop offset="1" stop-color="#E37DF7"/>
+      </linearGradient></defs>
+      <path d="M35.71 26.51 26.51 35.71H13.49L4.29 26.51V13.49L13.49 4.29H26.51L35.71 13.49Z" fill="none" stroke="url(#bg1)" stroke-width="2.2"/>
+      <path d="M13 20.5 18 25.5 27.5 14.5" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+    <div class="ring"></div>
+    <div class="t">loading the register</div>
+  </div>
+</div>
+
+<div class="bg" aria-hidden="true">
+  <div class="blob b1"></div>
+  <div class="blob b2"></div>
+  <canvas id="flow-canvas"></canvas>
+  <div class="dither"></div>
+</div>
+
 <div class="wrap">
 <header>
-  <h1>Passport</h1><span class="tag">what an AI agent actually does</span>
+  <div class="brand">
+    <svg class="seal" viewBox="0 0 40 40" aria-hidden="true">
+      <defs><linearGradient id="sg" x1="0" y1="1" x2="1" y2="0">
+        <stop offset="0" stop-color="#110FFF"/><stop offset=".55" stop-color="#9B6AF6"/><stop offset="1" stop-color="#E37DF7"/>
+      </linearGradient></defs>
+      <path d="M35.71 26.51 26.51 35.71H13.49L4.29 26.51V13.49L13.49 4.29H26.51L35.71 13.49Z" fill="none" stroke="url(#sg)" stroke-width="2.2"/>
+      <path d="M13 20.5 18 25.5 27.5 14.5" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+    <h1>Passport</h1>
+  </div>
+  <span class="tag">what an AI agent actually does</span>
+  <nav>
+    <a href="#how">How it works</a>
+    <a href="#passports">Passports</a>
+    <a href="#battery-sec">The battery</a>
+  </nav>
   <div class="right">
     <span id="who" class="mono muted"></span>
     <button id="connect" class="primary">Connect wallet</button>
@@ -66,12 +389,73 @@ a{color:inherit}
 </header>
 
 <div class="hero">
-  <p class="lede">An operator registers an agent and a few claims. Five validators each talk to the agent themselves, then agree — or refuse — with three words per claim.</p>
-  <p class="note">This is not a proof of which model sits behind an endpoint; no such proof exists. It is five independent observers agreeing on behaviour, and it says <em>inconclusive</em> whenever the behaviour did not settle the question. Every passport, issued or refused, is on the explorer with the validators' reasons.</p>
+  <div class="hero-copy">
+    <span class="eyebrow">
+      <svg class="glmark" viewBox="0 0 97.76 91.93" aria-hidden="true" fill="#fff">
+        <polygon points="44.26 32.35 27.72 67.12 43.29 74.9 0 91.93 44.26 0 44.26 32.35"/>
+        <polygon points="53.5 32.35 70.04 67.12 54.47 74.9 97.76 91.93 53.5 0 53.5 32.35"/>
+        <polygon points="48.64 43.78 58.33 62.94 48.64 67.69 39.47 62.92 48.64 43.78"/>
+      </svg>
+      GenLayer Agent Tank · Agentic Commerce
+    </span>
+    <h1 class="hero-title" id="reveal-title">Passport</h1>
+    <p class="hero-sub">an on-chain record of behaviour</p>
+    <p class="lede">An operator registers an agent and a few claims. Five validators each talk to the agent themselves, then agree — or refuse — with three words per claim.</p>
+    <p class="note">This is not a proof of which model sits behind an endpoint; no such proof exists. It is five independent observers agreeing on behaviour, and it says <em>inconclusive</em> whenever the behaviour did not settle the question. Every passport, issued or refused, is on the explorer with the validators' reasons.</p>
+    <div class="hero-cta">
+      <a class="ghost-link" href="#register-sec">Register an agent
+        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+      </a>
+      <a class="ghost-link" href="#how">Read the flow</a>
+    </div>
+  </div>
+
+  <div class="stage" id="stage">
+    <div class="ring"></div><div class="ring"></div>
+    <div class="fallback">
+      <svg viewBox="0 0 40 40" aria-hidden="true">
+        <defs><linearGradient id="fg" x1="0" y1="1" x2="1" y2="0">
+          <stop offset="0" stop-color="#110FFF"/><stop offset=".55" stop-color="#9B6AF6"/><stop offset="1" stop-color="#E37DF7"/>
+        </linearGradient></defs>
+        <path d="M35.71 26.51 26.51 35.71H13.49L4.29 26.51V13.49L13.49 4.29H26.51L35.71 13.49Z" fill="none" stroke="url(#fg)" stroke-width="1.5"/>
+        <path d="M13 20.5 18 25.5 27.5 14.5" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </div>
+    <canvas id="seal3d" aria-hidden="true"></canvas>
+    <span class="stage-cap">the seal · five validators · one verdict</span>
+  </div>
 </div>
 
-<section>
-  <h2>Register — the contract that holds the passports</h2>
+<section id="how" class="rv">
+  <h2><span class="n">01</span> How a passport is issued</h2>
+  <div class="card">
+    <div class="flow">
+      <div class="step done">
+        <div class="rail"><span class="dot"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 12 4 4 8-9"/></svg></span><span class="bar"></span></div>
+        <div class="txt"><span class="when">step one · operator</span><h3>Register the agent</h3><p>An HTTPS endpoint and at most six claims from a closed set. A claim the battery cannot test is refused at registration.</p></div>
+      </div>
+      <div class="step done">
+        <div class="rail"><span class="dot"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 12 4 4 8-9"/></svg></span><span class="bar"></span></div>
+        <div class="txt"><span class="when">step two · consensus</span><h3>Every validator runs the battery</h3><p>Each one POSTs the same public probes to the endpoint itself. Nothing the leader saw is trusted. Judged probes are asked in two presentation orders.</p></div>
+      </div>
+      <div class="step done">
+        <div class="rail"><span class="dot"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 12 4 4 8-9"/></svg></span><span class="bar"></span></div>
+        <div class="txt"><span class="when">step three · three words</span><h3>One word per claim</h3><p><span class="mono" style="color:var(--ok)">matches</span> · <span class="mono" style="color:var(--bad)">contradicts</span> · <span class="mono" style="color:var(--open)">inconclusive</span>. The validator compares its word with the leader's word, per claim, exactly.</p></div>
+      </div>
+      <div class="step">
+        <div class="rail"><span class="dot"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="8"/></svg></span><span class="bar"></span></div>
+        <div class="txt"><span class="when">outcome</span><h3>Issued, refused or pending</h3><p>Every claim matches → issued, valid 30 days on the transaction's own clock. Any contradiction → refused, with the reasons stored. Otherwise pending; ask again.</p></div>
+      </div>
+      <div class="step">
+        <div class="rail"><span class="dot"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="8"/></svg></span></div>
+        <div class="txt"><span class="when">anyone, free</span><h3>One question, no model</h3><p><span class="mono">is_valid(agent, claim)</span> — a synchronous view with no consensus, so an escrow can pay a passport-holder and nobody else.</p></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="register-sec" class="rv">
+  <h2><span class="n">02</span> Register — the contract that holds the passports</h2>
   <div class="card">
     <div class="row">
       <input id="addr" type="text" style="flex:1 1 360px" placeholder="0x… paste a Passport register, or deploy one">
@@ -83,8 +467,8 @@ a{color:inherit}
 </section>
 
 <div class="grid">
-<section>
-  <h2>Register an agent</h2>
+<section class="rv">
+  <h2><span class="n">03</span> Register an agent</h2>
   <div class="card">
     <label for="aid">Agent id</label>
     <input id="aid" type="text" placeholder="e.g. my-assistant">
@@ -92,8 +476,8 @@ a{color:inherit}
     <input id="endpoint" type="text" placeholder="https://…/api/agent">
     <label>Claims · from the closed set the battery can test</label>
     <div class="claims" id="claims"></div>
-    <p class="fine">One model family at most. Everything else is a capability or a safety property.</p>
-    <div class="row" style="margin-top:14px">
+    <p class="fine" style="margin-top:12px">One model family at most. Everything else is a capability or a safety property.</p>
+    <div class="row" style="margin-top:16px">
       <button id="register" class="primary" disabled>Register</button>
       <button id="update" disabled>Update mine</button>
       <button id="withdraw" disabled>Withdraw mine</button>
@@ -102,51 +486,578 @@ a{color:inherit}
   </div>
 </section>
 
-<section>
-  <h2>Inspect or challenge — the calls that cost consensus</h2>
+<section class="rv">
+  <h2><span class="n">04</span> Inspect or challenge — the calls that cost consensus</h2>
   <div class="card">
     <label for="iid">Agent id</label>
     <input id="iid" type="text" placeholder="the agent to inspect">
-    <div class="row" style="margin-top:14px">
+    <div class="row" style="margin-top:16px">
       <button id="inspect" class="primary" disabled>Inspect (operator)</button>
       <button id="challenge" disabled>Challenge (anyone)</button>
-      <span id="inspectSt" class="st" style="margin:0"></span>
     </div>
+    <p id="inspectSt" class="st"></p>
     <p class="fine" style="margin-top:12px"><b>Inspect</b> belongs to the operator: any outcome applies, and a refused pair (endpoint + claims) cannot be re-inspected unchanged — change something first. <b>Challenge</b> is for anyone who doubts an issued passport, once a day per agent: the same battery and the same judges, but only a contradiction changes anything. A passport can be taken away with evidence, never parked on a bad day. Either way each validator sends the battery to the endpoint itself, and the round settles only if all of them say the same words.</p>
     <label>Check a gate for free</label>
-    <div class="row">
-      <input id="gAgent" type="text" style="flex:1 1 120px" placeholder="agent">
-      <input id="gClaim" type="text" style="flex:1 1 120px" placeholder="claim, e.g. can:code">
-      <button id="gate">is_valid?</button>
+    <div class="gate">
+      <div class="fields">
+        <input id="gAgent" type="text" placeholder="agent">
+        <span class="sep"></span>
+        <input id="gClaim" type="text" placeholder="claim, e.g. can:code">
+        <button id="gate" aria-label="is_valid?">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
+        </button>
+      </div>
     </div>
     <p id="gateSt" class="st mono"></p>
   </div>
 </section>
 </div>
 
-<section>
-  <h2>Passports</h2>
+<section id="passports" class="rv">
+  <h2><span class="n">05</span> Passports</h2>
   <div class="card" id="agents"><p class="muted">load a register to see its agents</p></div>
 </section>
 
 <div class="grid">
-<section>
-  <h2>The battery — public</h2>
-  <div class="card"><pre id="battery">load a register</pre></div>
+<section id="battery-sec" class="rv">
+  <h2><span class="n">06</span> The battery — public</h2>
+  <div class="panel open" data-panel>
+    <button class="bar" data-toggle>
+      <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+      Probes
+      <span class="count" data-count-for="battery"></span>
+    </button>
+    <div class="body"><pre id="battery">load a register</pre></div>
+  </div>
 </section>
-<section>
-  <h2>The rules — published by the contract</h2>
-  <div class="card"><pre id="rules">load a register</pre></div>
+<section class="rv">
+  <h2><span class="n">07</span> The rules — published by the contract</h2>
+  <div class="panel open" data-panel>
+    <button class="bar" data-toggle>
+      <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+      rules()
+      <span class="count" data-count-for="rules"></span>
+    </button>
+    <div class="body"><pre id="rules">load a register</pre></div>
+  </div>
 </section>
 </div>
 
-<section>
-  <h2>Log</h2>
-  <div class="card"><pre id="log">ready.</pre></div>
+<section class="rv">
+  <h2><span class="n">08</span> Log</h2>
+  <div class="panel open" data-panel>
+    <button class="bar logbar" id="logbar" data-toggle>
+      <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+      Transactions
+      <span class="live"><span class="spin"></span><span class="shimmer">waiting for consensus</span></span>
+      <span class="count" data-count-for="log"></span>
+    </button>
+    <div class="body"><pre id="log">ready.</pre></div>
+  </div>
 </section>
 
-<footer>Passport · built for the GenLayer Agent Tank · reads and writes GenLayer Studio from your own wallet; nothing is signed by anybody else.</footer>
+<footer>
+  <svg class="glwm" viewBox="0 0 385.32 91.93" fill="#fff" aria-label="GenLayer">
+    <path d="M296.72,79.83v-6.28h7.17l2.69-6.54-13.82-31.49h8.28l9.49,22.42h.26l9.18-22.42h7.96l-13.55,31.65-5.31,12.66h-12.36Z"/>
+    <path d="M106.14,46.33c0-13.83,8.72-22.96,22.42-22.96,11.51,0,19.01,6.2,19.76,15.19h-7.36c-1.29-5.38-5.31-8.45-9.2-8.45h-6.2c-6.34,0-11.99,7.15-11.99,16.08s5.79,15.94,12.54,15.94h4.57c5.04,0,8.99-3,10.63-6.2v-5.66h-10.97v-6.06h17.78v13.9c-2.73,5.31-8.86,10.77-19.62,10.77-13.56,0-22.35-8.31-22.35-22.55Z"/>
+    <path d="M153.44,51.78c0-10.42,6.95-17.17,17.1-17.17,9.61,0,16.01,5.86,16.01,17.51v1.64h-25.96c.68,4.97,3.82,8.86,8.52,8.86h2.93c3.68,0,6.06-2.25,6.81-5.11h7.09c-.89,6.54-6.27,11.38-15.6,11.38-10.77,0-16.9-7.22-16.9-17.1ZM179.33,48.31c-.34-4.57-3.54-7.43-7.02-7.43h-3.75c-3.75,0-6.75,2.93-7.7,7.43h18.46Z"/>
+    <path d="M191.68,34.61h17.85c8.04,0,12.74,4.57,12.74,12.95v20.37h-7.15v-19.15c0-4.7-2.38-7.49-5.79-7.49h-10.49v26.64h-7.15v-33.32Z"/>
+    <path d="M228.29,24.32h7.36v36.86h16.26v6.75h-23.62V24.32Z"/>
+    <path d="M253.95,51.71c0-10.08,6.54-17.1,15.88-17.1,4.84,0,8.79,2.25,10.9,4.84v-3.88h7.02v32.36h-7.02v-4.57c-2.45,3.13-6,5.52-11.11,5.52-9.4,0-15.67-7.02-15.67-17.17ZM269.15,62.48h4.29c4.02,0,7.09-3.41,7.09-7.84v-5.66c0-4.29-2.86-7.97-7.09-7.97h-4.29c-4.43,0-8.04,4.77-8.04,10.7s3.61,10.77,8.04,10.77Z"/>
+    <path d="M327.94,51.78c0-10.42,6.95-17.17,17.1-17.17,9.61,0,16.01,5.86,16.01,17.51v1.64h-25.96c.68,4.97,3.82,8.86,8.52,8.86h2.93c3.68,0,6.06-2.25,6.81-5.11h7.09c-.89,6.54-6.27,11.38-15.6,11.38-10.77,0-16.9-7.22-16.9-17.1ZM353.83,48.31c-.34-4.57-3.54-7.43-7.02-7.43h-3.75c-3.75,0-6.75,2.93-7.7,7.43h18.46Z"/>
+    <path d="M366.18,35.57h19.15v6.88h-11.99v25.48h-7.15v-32.36Z"/>
+    <polygon points="44.26 32.35 27.72 67.12 43.29 74.9 0 91.93 44.26 0 44.26 32.35"/>
+    <polygon points="53.5 32.35 70.04 67.12 54.47 74.9 97.76 91.93 53.5 0 53.5 32.35"/>
+    <polygon points="48.64 43.78 58.33 62.94 48.64 67.69 39.47 62.92 48.64 43.78"/>
+  </svg>
+  <span class="built">Passport · built for the GenLayer Agent Tank · reads and writes GenLayer Studio from your own wallet; nothing is signed by anybody else.</span>
+</footer>
 </div>
+
+<!-- the app, untouched -->
 <script type="module" src="./passport-app.js"></script>
+
+<!-- presentation layer: background, 3D seal, spinners, panels. Never touches app state. -->
+<script>
+(function () {
+  "use strict";
+  var reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  var DPR = Math.min(window.devicePixelRatio || 1, 1.5);
+  // each block runs on its own: one failing effect must never take the rest
+  // of the page's behaviour (or its text) down with it
+  function run(f) { try { f(); } catch (e) { console.warn("passport-ui: " + (f.name || "block"), e); } }
+
+  /* ---------------------------------------------------------- boot spinner */
+  var booted = false;
+  function bootDone() {
+    if (booted) return;
+    booted = true;
+    var b = document.getElementById("boot");
+    if (!b) return;
+    b.classList.add("gone");
+    // taken out of the document, not just faded: a throttled frame loop must
+    // never be able to leave the overlay sitting on top of the page
+    setTimeout(function () { if (b.parentNode) b.parentNode.removeChild(b); }, 600);
+  }
+  addEventListener("load", function () { setTimeout(bootDone, 260); });
+  setTimeout(bootDone, 2600); // never trap the page behind a slow font
+
+  /* ------------------------------------------------- gateway flow backdrop */
+  run(function flow() {
+    var canvas = document.getElementById("flow-canvas");
+    if (!canvas || reduce) return;
+    var ctx = canvas.getContext("2d", { alpha: true });
+    var w = 0, h = 0, layer = null, paths = [], ripples = [], running = false, last = 0;
+    var COUNT = innerWidth < 760 ? 22 : 40;   // half of the original density, no visual loss at this opacity
+    var FRAME = 1000 / 30;                    // 30fps is plenty for drifting dots
+
+    function bezier(t, p0, p1, p2, p3) {
+      var u = 1 - t;
+      return {
+        x: u * u * u * p0.x + 3 * u * u * t * p1.x + 3 * u * t * t * p2.x + t * t * t * p3.x,
+        y: u * u * u * p0.y + 3 * u * u * t * p1.y + 3 * u * t * t * p2.y + t * t * t * p3.y
+      };
+    }
+    function control(p) {
+      var cx = w / 2, cy = h / 2;
+      return [
+        { x: p.left ? 0 : w, y: p.startY },
+        { x: p.left ? cx * 0.5 : w - cx * 0.5, y: p.startY },
+        { x: p.left ? cx * 0.8 : w - cx * 0.8, y: cy },
+        { x: cx, y: cy }
+      ];
+    }
+    function build() {
+      w = innerWidth; h = innerHeight;
+      if (w < 1 || h < 1) { layer = null; return false; }   // 0×0 embed: try again on resize
+      canvas.width = w * DPR; canvas.height = h * DPR;
+      ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+      paths = [];
+      for (var i = 0; i < COUNT; i++) {
+        paths.push({
+          left: i % 2 === 0,
+          startY: (i / COUNT) * h * 1.4 - h * 0.2,
+          t: Math.random(),
+          speed: 0.0012 + Math.random() * 0.0016
+        });
+      }
+      // the dashed rails never move — draw them once, then only the dots cost anything
+      layer = document.createElement("canvas");
+      layer.width = canvas.width; layer.height = canvas.height;
+      var lc = layer.getContext("2d");
+      lc.setTransform(DPR, 0, 0, DPR, 0, 0);
+      lc.strokeStyle = "rgba(255,255,255,0.16)";
+      lc.lineWidth = 1;
+      lc.setLineDash([1, 5]);
+      paths.forEach(function (p) {
+        var c = control(p);
+        lc.beginPath();
+        lc.moveTo(c[0].x, c[0].y);
+        lc.bezierCurveTo(c[1].x, c[1].y, c[2].x, c[2].y, c[3].x, c[3].y);
+        lc.stroke();
+      });
+      return true;
+    }
+    function render() {
+      if (w < 1 || h < 1 || !layer || layer.width < 1) return;
+      ctx.clearRect(0, 0, w, h);
+      ctx.drawImage(layer, 0, 0, w, h);
+      for (var i = ripples.length - 1; i >= 0; i--) {
+        var r = ripples[i];
+        r.radius += 14; r.life -= 0.02;
+        if (r.life <= 0) { ripples.splice(i, 1); continue; }
+        ctx.beginPath();
+        ctx.arc(r.x, r.y, r.radius, 0, Math.PI * 2);
+        ctx.strokeStyle = "rgba(155,106,246," + (r.life * 0.35).toFixed(3) + ")";
+        ctx.lineWidth = 1;
+        ctx.stroke();
+      }
+      ctx.fillStyle = "rgba(255,255,255,0.6)";
+      for (var k = 0; k < paths.length; k++) {
+        var p = paths[k];
+        p.t += p.speed;
+        if (p.t > 1) p.t = 0;
+        var c = control(p), pos = bezier(p.t, c[0], c[1], c[2], c[3]);
+        var dx = 0, dy = 0;
+        for (var j = 0; j < ripples.length; j++) {
+          var e = ripples[j], ex = pos.x - e.x, ey = pos.y - e.y;
+          var d = Math.hypot(ex, ey);
+          if (d > 0 && d < e.radius + 110 && d > e.radius - 110) {
+            var f = (1 - Math.abs(d - e.radius) / 110) * e.life;
+            dx += (ex / d) * f * 60; dy += (ey / d) * f * 60;
+          }
+        }
+        ctx.fillRect(pos.x + dx - 1, pos.y + dy - 1, 2, 2);
+      }
+    }
+    function frame(now) {
+      if (!running) return;
+      requestAnimationFrame(frame);
+      if (now - last < FRAME) return;
+      last = now;
+      render();
+    }
+    function start() { if (running) return; running = true; last = 0; requestAnimationFrame(frame); }
+    function stop() { running = false; }
+
+    build();
+    render();          // one frame straight away, so the backdrop is never empty
+    start();
+    var rt;
+    function rebuild() { if (build()) { render(); return true; } return false; }
+    addEventListener("resize", function () { clearTimeout(rt); rt = setTimeout(rebuild, 220); });
+    // an embed can get its box without a window resize event ever firing:
+    // keep retrying until the first successful build, then stop
+    if (w < 1) {
+      var tries = 0;
+      var retry = setInterval(function () { if (rebuild() || ++tries > 40) clearInterval(retry); }, 250);
+      if (typeof ResizeObserver === "function") {
+        var ro = new ResizeObserver(function () { if (rebuild()) { ro.disconnect(); clearInterval(retry); } });
+        ro.observe(canvas.parentNode || canvas);
+      }
+    }
+    document.addEventListener("visibilitychange", function () { document.hidden ? stop() : start(); });
+    addEventListener("pointerdown", function (e) {
+      if (ripples.length > 3) return;
+      ripples.push({ x: e.clientX, y: e.clientY, radius: 0, life: 1 });
+    }, { passive: true });
+  });
+
+  /* -------------------------------------------------- letters that answer */
+  run(function letters() {
+    var host = document.getElementById("reveal-title");
+    if (!host) return;
+    var text = host.textContent.trim();
+    host.textContent = "";
+    var frag = document.createDocumentFragment();
+    for (var i = 0; i < text.length; i++) {
+      var s = document.createElement("span");
+      s.className = "ltr";
+      s.textContent = text[i];
+      s.style.animationDelay = (i * 45) + "ms";
+      s.dataset.anim = String(i % 6);
+      frag.appendChild(s);
+    }
+    host.appendChild(frag);
+    if (reduce) return;
+    var anims = ["rubber", "hinge", "jump", "slide", "shake", "pop"];
+    host.addEventListener("pointerenter", function () {}, { passive: true });
+    Array.prototype.forEach.call(host.children, function (el) {
+      var name = anims[Number(el.dataset.anim)];
+      function play() {
+        if (el.dataset.busy) return;
+        el.dataset.busy = "1";
+        el.style.animation = "ltr-" + name + " .78s cubic-bezier(.175,.885,.32,1.275) both";
+        setTimeout(function () { el.style.animation = ""; delete el.dataset.busy; }, 820);
+      }
+      el.addEventListener("pointerenter", play, { passive: true });
+      el.addEventListener("click", play);
+    });
+    // intro
+    Array.prototype.forEach.call(host.children, function (el, i) {
+      el.style.animation = "ltr-in .7s cubic-bezier(.175,.885,.32,1.275) " + (i * 45) + "ms both";
+      setTimeout(function () { el.style.animation = ""; }, 700 + i * 45 + 60);
+    });
+  });
+
+  /* ------------------------------------------------------------- panels */
+  run(function panels() {
+  document.querySelectorAll("[data-panel]").forEach(function (panel) {
+    var bar = panel.querySelector("[data-toggle]");
+    if (bar) bar.addEventListener("click", function () { panel.classList.toggle("open"); });
+  });
+  document.querySelectorAll("[data-count-for]").forEach(function (el) {
+    var target = document.getElementById(el.getAttribute("data-count-for"));
+    if (!target) return;
+    var label = function () {
+      var t = (target.textContent || "").trim();
+      if (target.id === "battery") {
+        var n = (t.match(/^\[/gm) || []).length;
+        el.textContent = n ? n + (n === 1 ? " probe" : " probes") : "";
+      } else if (target.id === "log") {
+        var l = t.split("\n").length;
+        el.textContent = l + (l === 1 ? " line" : " lines");
+      } else {
+        el.textContent = t.length > 24 ? (t.split("\n").length + " lines") : "";
+      }
+    };
+    label();
+    new MutationObserver(label).observe(target, { childList: true, characterData: true, subtree: true });
+  });
+  });
+
+  /* ------------------------------------------------------- log activity */
+  run(function logSpinner() {
+    var pre = document.getElementById("log"), bar = document.getElementById("logbar");
+    if (!pre || !bar) return;
+    var timer = null;
+    new MutationObserver(function () {
+      var t = pre.textContent, tail = t.slice(-400);
+      if (/▶/.test(tail)) {
+        bar.classList.add("busy");
+        clearTimeout(timer);
+        timer = setTimeout(function () { bar.classList.remove("busy"); }, 300000);
+      }
+      if (/✓|✗|⚖|votes:/.test(tail)) { bar.classList.remove("busy"); clearTimeout(timer); }
+      var box = pre.parentElement || pre;
+      box.scrollTop = box.scrollHeight;
+    }).observe(pre, { childList: true, characterData: true, subtree: true });
+  });
+
+  /* --------------------------------------------- arrow-fill + busy states */
+  run(function buttons() {
+  var ARROW = '<svg class="a1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>' +
+              '<svg class="a2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>';
+  function dress(btn) {
+    if (btn.querySelector(".lbl")) return;
+    var text = (btn.textContent || "").trim();
+    if (!text) return;
+    btn.dataset.dressing = "1";
+    btn.innerHTML = '<span class="spin"></span><span class="lbl">' + text + "</span>" +
+      '<span class="fill"></span><span class="lbl-fill">' + text + "</span>" +
+      '<span class="knob">' + ARROW + "</span>";
+    delete btn.dataset.dressing;
+  }
+  document.querySelectorAll("button.primary").forEach(function (btn) {
+    dress(btn);
+    // passport-app.js rewrites #connect's label with textContent — re-dress when it does
+    new MutationObserver(function () {
+      if (btn.dataset.dressing) return;
+      if (!btn.querySelector(".lbl")) dress(btn);
+    }).observe(btn, { childList: true });
+  });
+
+  // a spinner for every call that goes to the network
+  [["load", "regSt"], ["deploy", "regSt"], ["register", "regAgentSt"], ["update", "regAgentSt"],
+   ["withdraw", "regAgentSt"], ["inspect", "inspectSt"], ["challenge", "inspectSt"], ["gate", "gateSt"]
+  ].forEach(function (pair) {
+    var btn = document.getElementById(pair[0]), st = document.getElementById(pair[1]);
+    if (!btn || !st) return;
+    if (!btn.querySelector(".spin")) btn.insertAdjacentHTML("afterbegin", '<span class="spin"></span>');
+    var timer = null;
+    function clear() { btn.classList.remove("is-busy"); clearTimeout(timer); }
+    btn.addEventListener("click", function () {
+      if (btn.disabled) return;
+      btn.classList.add("is-busy");
+      clearTimeout(timer);
+      timer = setTimeout(clear, 300000);
+    });
+    new MutationObserver(clear).observe(st, { childList: true, characterData: true, subtree: true });
+  });
+  });
+
+  /* ------------------------------------------- reveal (a rect test, so it
+     also works inside an iframe or a background tab; the hidden state is
+     added by script, so no-JS or a throttled frame loop still shows text) */
+  run(function reveal() {
+  var rvs = [].slice.call(document.querySelectorAll(".rv"));
+  var queued = 0;
+  function sweep() {
+    queued = 0;
+    for (var i = rvs.length - 1; i >= 0; i--) {
+      var r = rvs[i].getBoundingClientRect();
+      if (r.top < innerHeight * 0.94 && r.bottom > -40) { rvs[i].classList.add("in"); rvs.splice(i, 1); }
+    }
+    if (!rvs.length) { removeEventListener("scroll", onScroll); removeEventListener("resize", onScroll); }
+  }
+  function onScroll() { if (!queued) queued = setTimeout(sweep, 60); }
+  addEventListener("scroll", onScroll, { passive: true });
+  addEventListener("resize", onScroll);
+  // hide sections only once we know this browser is actually delivering frames:
+  // without them a transition never progresses, and text must never be the
+  // thing that depends on an animation running
+  var probe = setTimeout(function () { start(false); }, 300);
+  requestAnimationFrame(function () { clearTimeout(probe); start(true); });
+  function start(animate) {
+    if (start.done) return;
+    start.done = true;
+    if (animate) document.documentElement.classList.add("anim");
+    sweep();
+    var poll = setInterval(function () { sweep(); if (!rvs.length) clearInterval(poll); }, 300);
+    addEventListener("load", sweep);
+  }
+  });
+})();
+</script>
+
+<style>
+@keyframes ltr-in{from{opacity:0;transform:translateY(26px) scale(.9)}to{opacity:1;transform:none}}
+@keyframes ltr-rubber{0%{transform:scale(1,1)}30%{transform:scale(1.22,.78)}55%{transform:scale(.82,1.2)}75%{transform:scale(1.08,.94)}100%{transform:scale(1,1)}}
+@keyframes ltr-hinge{0%{transform:rotate(0)}25%{transform:rotate(14deg)}50%{transform:rotate(-8deg)}75%{transform:rotate(5deg)}100%{transform:rotate(0)}}
+@keyframes ltr-jump{0%{transform:translateY(0) scaleY(1)}25%{transform:translateY(6px) scaleY(.78)}60%{transform:translateY(-26px) scaleY(1.1)}100%{transform:translateY(0) scaleY(1)}}
+@keyframes ltr-slide{0%{transform:translateX(0)}25%{transform:translateX(-14px)}55%{transform:translateX(10px)}80%{transform:translateX(-4px)}100%{transform:translateX(0)}}
+@keyframes ltr-shake{0%,100%{transform:translate(0,0) rotate(0)}20%{transform:translate(-3px,-2px) rotate(-1.5deg)}40%{transform:translate(3px,2px) rotate(1.5deg)}60%{transform:translate(-2px,1px) rotate(-1deg)}80%{transform:translate(2px,-1px) rotate(1deg)}}
+@keyframes ltr-pop{0%{transform:scale(1)}45%{transform:scale(1.28)}100%{transform:scale(1)}}
+</style>
+
+<!-- the 3D seal: five validators around one verdict. Loaded only when it is on
+     screen, paused when it is not, and skipped entirely on reduced motion. -->
+<script type="module">
+const stage = document.getElementById("stage");
+const canvas = document.getElementById("seal3d");
+if (stage && canvas && !matchMedia("(prefers-reduced-motion: reduce)").matches) {
+  let started = false;
+  const near = (pad) => {
+    const r = stage.getBoundingClientRect();
+    return r.top < innerHeight + pad && r.bottom > -pad;
+  };
+  const tryBoot = () => {
+    if (started || !near(260)) return;
+    started = true;
+    removeEventListener("scroll", tryBoot);
+    boot().catch((e) => console.warn("seal3d", e));
+  };
+  addEventListener("scroll", tryBoot, { passive: true });
+  addEventListener("load", tryBoot);
+  tryBoot();
+  setTimeout(tryBoot, 500);
+
+  async function boot() {
+    let THREE;
+    try { THREE = await import("https://esm.sh/three@0.160.0"); }
+    catch (e) { console.warn("seal3d: three.js unavailable, keeping the flat seal", e); return; }
+
+    const DPR = Math.min(window.devicePixelRatio || 1, 1.6);
+    const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: false, powerPreference: "low-power", preserveDrawingBuffer: true });
+    renderer.setPixelRatio(DPR);
+
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(34, 1, 0.1, 100);
+    camera.position.set(0, 0.35, 9.2);
+
+    /* ---- the seal: an extruded octagon, brand gradient baked in a shader ---- */
+    const R = 2.05, shape = new THREE.Shape();
+    for (let i = 0; i < 8; i++) {
+      const a = (Math.PI / 8) + i * (Math.PI / 4);
+      const x = Math.cos(a) * R, y = Math.sin(a) * R;
+      i === 0 ? shape.moveTo(x, y) : shape.lineTo(x, y);
+    }
+    shape.closePath();
+    const hole = new THREE.Path();
+    for (let i = 0; i < 8; i++) {
+      const a = (Math.PI / 8) + i * (Math.PI / 4);
+      const x = Math.cos(a) * (R - 0.34), y = Math.sin(a) * (R - 0.34);
+      i === 0 ? hole.moveTo(x, y) : hole.lineTo(x, y);
+    }
+    hole.closePath();
+    shape.holes.push(hole);
+
+    const gradient = new THREE.ShaderMaterial({
+      uniforms: { uT: { value: 0 } },
+      vertexShader: `
+        varying vec3 vP; varying vec3 vN;
+        void main(){ vP = position; vN = normalize(normalMatrix * normal);
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }`,
+      fragmentShader: `
+        varying vec3 vP; varying vec3 vN;
+        void main(){
+          float t = clamp((vP.y + 2.2) / 4.4, 0.0, 1.0);
+          vec3 c = mix(vec3(0.067,0.059,1.0), vec3(0.608,0.416,0.965), smoothstep(0.0,0.62,t));
+          c = mix(c, vec3(0.890,0.490,0.969), smoothstep(0.55,1.0,t));
+          float rim = pow(1.0 - abs(dot(normalize(vN), vec3(0.0,0.0,1.0))), 2.2);
+          gl_FragColor = vec4(c + rim * 0.55, 1.0);
+        }`
+    });
+
+    const ring = new THREE.Mesh(
+      new THREE.ExtrudeGeometry(shape, { depth: 0.34, bevelEnabled: true, bevelThickness: 0.05, bevelSize: 0.05, bevelSegments: 1, curveSegments: 1 }),
+      gradient
+    );
+    ring.position.z = -0.17;
+
+    const seal = new THREE.Group();
+    seal.add(ring);
+
+    // the check, on both faces so the back is never blank
+    const white = new THREE.MeshBasicMaterial({ color: 0xffffff });
+    const shortArm = new THREE.BoxGeometry(0.95, 0.26, 0.12);
+    const longArm = new THREE.BoxGeometry(1.98, 0.26, 0.12);
+    function check(z, flip) {
+      const g = new THREE.Group();
+      const s = new THREE.Mesh(shortArm, white);
+      s.position.set(-0.675, -0.2, 0); s.rotation.z = -0.82;
+      const l = new THREE.Mesh(longArm, white);
+      l.position.set(0.3, 0.2, 0); l.rotation.z = 0.855;
+      g.add(s, l);
+      g.position.z = z;
+      if (flip) g.rotation.y = Math.PI;   // reads as a check from the back too
+      return g;
+    }
+    seal.add(check(0.2, false), check(-0.2, true));
+
+    // five validators on one orbit
+    const nodes = [];
+    const nodeGeo = new THREE.OctahedronGeometry(0.17, 0);
+    for (let i = 0; i < 5; i++) {
+      const m = new THREE.Mesh(nodeGeo, new THREE.MeshBasicMaterial({ color: 0xffffff }));
+      m.userData.phase = (i / 5) * Math.PI * 2;
+      nodes.push(m);
+      seal.add(m);
+    }
+    const orbit = new THREE.Line(
+      new THREE.BufferGeometry().setFromPoints(
+        Array.from({ length: 65 }, (_, i) => {
+          const a = (i / 64) * Math.PI * 2;
+          return new THREE.Vector3(Math.cos(a) * 3.15, 0, Math.sin(a) * 3.15);
+        })
+      ),
+      new THREE.LineBasicMaterial({ color: 0x9b6af6, transparent: true, opacity: 0.28 })
+    );
+    orbit.rotation.x = 1.28;
+    seal.add(orbit);
+
+    seal.rotation.x = 0.24;
+    scene.add(seal);
+
+    function size() {
+      const r = stage.getBoundingClientRect();
+      const w = Math.max(240, r.width), h = Math.max(240, r.height);
+      renderer.setSize(w, h, false);
+      camera.aspect = w / h;
+      camera.updateProjectionMatrix();
+    }
+    size();
+    let rt; addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(size, 220); });
+
+    // pointer parallax, lerped so nothing jitters
+    let tx = 0, ty = 0, px = 0, py = 0;
+    addEventListener("pointermove", (e) => {
+      tx = (e.clientX / innerWidth - 0.5) * 0.5;
+      ty = (e.clientY / innerHeight - 0.5) * 0.32;
+    }, { passive: true });
+
+    let visible = true, alive = true, last = 0;
+    const FRAME = 1000 / 30;
+    // cheap off-screen check: a rect test twice a second, never per frame
+    setInterval(() => { visible = near(140); }, 500);
+    document.addEventListener("visibilitychange", () => { alive = !document.hidden; });
+
+    stage.classList.add("live");
+
+    function tick(now) {
+      const t = now / 1000;
+      px += (tx - px) * 0.05; py += (ty - py) * 0.05;
+      seal.rotation.y = t * 0.28 + px;
+      seal.rotation.x = 0.24 + py;
+      for (let i = 0; i < nodes.length; i++) {
+        const a = nodes[i].userData.phase + t * 0.42;
+        nodes[i].position.set(Math.cos(a) * 3.15, Math.sin(a * 1.6) * 0.34, Math.sin(a) * 3.15);
+        nodes[i].scale.setScalar(0.9 + Math.sin(t * 1.7 + i) * 0.16);
+      }
+      renderer.render(scene, camera);
+    }
+
+    tick(performance.now());   // paint one frame before the loop starts
+
+    function loop(now) {
+      requestAnimationFrame(loop);
+      if (!visible || !alive || now - last < FRAME) return;
+      last = now;
+      tick(now);
+    }
+    requestAnimationFrame(loop);
+  }
+}
+</script>
 </body>
 </html>

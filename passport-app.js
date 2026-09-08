@@ -16,7 +16,7 @@ const rpc = async (m, p) => {
 };
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const link = (path, text) => `<a href="${EXPLORER}${path}" target="_blank" rel="noopener">${esc(text)}</a>`;
-const log = (m, cls) => { const e = $("log"); e.innerHTML += "\n" + (cls ? `<span class="${cls}">${m}</span>` : m); e.scrollTop = e.scrollHeight; };
+const log = (m, cls) => { const e = $("log"); e.innerHTML += "\n" + (cls ? `<span class="${cls}">${m}</span>` : m); for (const box of [e, e.parentElement]) if (box) box.scrollTop = box.scrollHeight; };
 
 /* ---------------------------------------------------------------- wallet */
 const provs = [];
@@ -49,13 +49,15 @@ $("claims").innerHTML = CLAIMS.map((c) => `<label><input type="checkbox" value="
 const chosenClaims = () => [...$("claims").querySelectorAll("input:checked")].map((i) => i.value);
 
 /* -------------------------------------------------------------- register */
-async function readOrRetry(fn, args = [], tries = 4) {
+async function readOrRetry(fn, args = [], tries = 4, address = reg) {
   let last;
-  for (let i = 0; i < tries; i++) { try { return { ok: true, value: await reader().readContract({ address: reg, functionName: fn, args }) }; } catch (e) { last = e; await new Promise((r) => setTimeout(r, 700 * (i + 1))); } }
+  if (!address) return { ok: false, error: new Error("no register loaded") };
+  for (let i = 0; i < tries; i++) { try { return { ok: true, value: await reader().readContract({ address, functionName: fn, args }) }; } catch (e) { last = e; await new Promise((r) => setTimeout(r, 700 * (i + 1))); } }
   return { ok: false, error: last };
 }
 async function useRegister(address) {
-  const probe = await readOrRetry.call(null, "rules", [], 4);
+  $("regSt").textContent = "reading " + address + " …";
+  const probe = await readOrRetry("rules", [], 4, address);
   if (!probe.ok) { $("regSt").innerHTML = `<span class="warn">${esc(address)} did not answer rules() after four tries — not a Passport register, or the network is refusing reads right now.</span>`; return false; }
   reg = address; try { localStorage.setItem("passport_register", address); } catch (e) {}
   $("addr").value = address;
