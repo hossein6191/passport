@@ -123,14 +123,16 @@ transactions for both inspections, the narrowing, and the third inspection.
 python -m pytest -q tests/                    # 34 pure tests, no network, under a second
 python tools/mutate.py                        # 23 mutants, all must die, writes tests/MUTATIONS.md
 genvm-lint check contracts/passport.py
-HONEST_URL=… LIAR_URL=… node tests/on_chain/smoke.mjs      # Studio, throwaway account, 17 checks
+HONEST_URL=… LIAR_URL=… node tests/on_chain/smoke.mjs      # Studio, throwaway account, 22 checks
 PASSPORT=0x… ISSUED=honest REFUSED=liar CLAIM=can:code OPERATOR_KEY=0x… node tests/on_chain/escrow.mjs
 ```
 
-The on-chain tests need `genlayer-js` and `viem` on the Node path. On 7 September 2026 the smoke
-test passed 17/17 against Studio, both inspections settling 3 agree, 0 disagree, and the
-escrow test 10/10: 12 GEN reached the operator of a passport-holder, and 7 GEN went back
-to the buyer of a job the passport did not cover.
+The on-chain tests need `genlayer-js` and `viem` on the Node path. On 8 September 2026 the smoke
+test passed 22/22 against Studio — every inspection and challenge settling 3 agree,
+0 disagree; a stranger's inspection refused, a stranger's challenge standing, a second
+challenge the same day refused — and the escrow test 12/12: 12 GEN reached the operator
+of a passport-holder, 7 GEN went back to the buyer of a job the passport did not cover, and
+the operator could not settle a job younger than seven days.
 
 ## Rules this was built under
 
