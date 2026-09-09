@@ -73,6 +73,12 @@ MUTATIONS = [
 ]
 
 
+def _fresh_env(**extra):
+    env = dict(os.environ, PYTHONDONTWRITEBYTECODE="1")
+    env.update(extra)
+    return env
+
+
 def run(mutant_path: pathlib.Path, escrow_path: pathlib.Path) -> str:
     env = dict(os.environ, PASSPORT_SOURCE=str(mutant_path), ESCROW_SOURCE=str(escrow_path))
     out = subprocess.run(PYTEST, env=env, capture_output=True, text=True, cwd=ROOT)
@@ -88,7 +94,7 @@ def run(mutant_path: pathlib.Path, escrow_path: pathlib.Path) -> str:
 
 
 def main() -> int:
-    baseline = subprocess.run(PYTEST, capture_output=True, text=True, cwd=ROOT)
+    baseline = subprocess.run(PYTEST, env=_fresh_env(), capture_output=True, text=True, cwd=ROOT)
     if baseline.returncode != 0:
         print("the unmutated suite does not pass; a mutation table over a failing suite proves nothing")
         print((baseline.stdout + baseline.stderr)[-600:]); return 3
@@ -100,7 +106,7 @@ def main() -> int:
             base = ESRC if target == "escrow" else SRC
             if base.count(old) != 1:
                 print(f"  ! mutation anchor not found exactly once ({base.count(old)}): {name}"); return 2
-            path = pathlib.Path(tmp) / "passport.py"; epath = pathlib.Path(tmp) / "escrow.py"
+            k = len(rows) + len(escaped); path = pathlib.Path(tmp) / f"passport_{k}.py"; epath = pathlib.Path(tmp) / f"escrow_{k}.py"
             path.write_text(base.replace(old, new) if target == "passport" else SRC, encoding="utf-8")
             epath.write_text(base.replace(old, new) if target == "escrow" else ESRC, encoding="utf-8")
             killer = run(path, epath)
