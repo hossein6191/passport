@@ -85,16 +85,22 @@ function offerAgents(ids, firstClaim) {
 }
 
 /* -------------------------------------------------------------- register */
-async function readOrRetry(fn, args = [], tries = 4, address = reg) {
+/* Studio's RPC sometimes answers a read with "Contract not found" for an address the
+   explorer shows perfectly well, for a minute at a time. Reads therefore retry with a
+   growing pause — eight tries, about forty seconds in all — before giving up. */
+async function readOrRetry(fn, args = [], tries = 8, address = reg) {
   let last;
   if (!address) return { ok: false, error: new Error("no register loaded") };
-  for (let i = 0; i < tries; i++) { try { return { ok: true, value: await reader().readContract({ address, functionName: fn, args }) }; } catch (e) { last = e; await new Promise((r) => setTimeout(r, 700 * (i + 1))); } }
+  for (let i = 0; i < tries; i++) {
+    try { return { ok: true, value: await reader().readContract({ address, functionName: fn, args }) }; }
+    catch (e) { last = e; await new Promise((r) => setTimeout(r, Math.min(8000, 500 + 350 * (i + 1) * (i + 1)))); }
+  }
   return { ok: false, error: last };
 }
 async function useRegister(address) {
   $("regSt").textContent = "reading " + address + " …";
   const probe = await readOrRetry("rules", [], 4, address);
-  if (!probe.ok) { $("regSt").innerHTML = `<span class="warn">${esc(address)} did not answer rules() after four tries — not a Passport register, or the network is refusing reads right now.</span>`; return false; }
+  if (!probe.ok) { $("regSt").innerHTML = `<span class="warn">${esc(address)} did not answer rules() after eight tries over forty seconds — not a Passport register, or Studio is refusing reads right now; the explorer still shows it, so press Load again in a minute.</span>`; return false; }
   reg = address; try { localStorage.setItem("passport_register", address); } catch (e) {}
   $("addr").value = address;
   $("regSt").innerHTML = "This register on the explorer: " + link("/address/" + address, address);

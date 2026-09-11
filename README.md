@@ -120,7 +120,8 @@ transactions for both inspections, the narrowing, and the third inspection.
 ## Running it
 
 ```bash
-python -m pytest -q tests/                    # 34 pure tests, no network, under a second
+pip install -r requirements-dev.txt && python -m pytest -q tests/    # 34 pure tests, no network, under a second
+npm ci                                        # genlayer-js 1.1.8 and viem 2.56.3, from the lockfile
 python tools/mutate.py                        # 23 mutants, all must die, writes tests/MUTATIONS.md
 genvm-lint check contracts/passport.py
 HONEST_URL=… LIAR_URL=… node tests/on_chain/smoke.mjs      # Studio, throwaway account, 22 checks

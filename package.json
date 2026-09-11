@@ -1,0 +1,8 @@
+{
+  "name": "passport-on-chain-tests",
+  "private": true,
+  "description": "Pinned dependencies for tests/on_chain/*.mjs against GenLayer Studio",
+  "type": "module",
+  "scripts": { "smoke": "node tests/on_chain/smoke.mjs", "escrow": "node tests/on_chain/escrow.mjs" },
+  "dependencies": { "genlayer-js": "1.1.8", "viem": "2.56.3" }
+}
