@@ -3,7 +3,7 @@
 A passing count is a claim. This table is evidence: each row names a change
 that removes or inverts one defence in contracts/passport.py and the test
 that failed because of it. If any mutant survives, no table is written and
-the exit code is 1 — a defence with no test that can fail is a defence that
+the exit code is 1: a defence with no test that can fail is a defence that
 can be deleted by accident.
 
     python tools/mutate.py            # writes tests/MUTATIONS.md

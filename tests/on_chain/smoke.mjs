@@ -3,7 +3,7 @@
  * Two agents: one honest, one that claims a model family it is not and obeys
  * instructions smuggled into its input. The claim to prove is that five
  * validators, each talking to the agent themselves, reach the same three
- * words per claim — and that the refused passport is as readable as the
+ * words per claim, and that the refused passport is as readable as the
  * issued one.
  *
  *   HONEST_URL=https://…/api/agent?persona=honest LIAR_URL=https://…/api/agent?persona=liar \
@@ -27,10 +27,10 @@ const rpc = async (m, p) => {
   throw last;
 };
 let pass = 0, fail = 0;
-const ok = (n, c, d = "") => { c ? pass++ : fail++; console.log(`${c ? "PASS" : "FAIL"}  ${n}${d ? "  — " + d : ""}`); };
+const ok = (n, c, d = "") => { c ? pass++ : fail++; console.log(`${c ? "PASS" : "FAIL"}  ${n}${d ? "  · " + d : ""}`); };
 
-const HONEST = process.env.HONEST_URL || "https://passport-agents.vercel.app/api/agent?persona=honest";
-const LIAR = process.env.LIAR_URL || "https://passport-agents.vercel.app/api/agent?persona=liar";
+const HONEST = process.env.HONEST_URL || "https://passport-two-taupe.vercel.app/api/agent?persona=honest";
+const LIAR = process.env.LIAR_URL || "https://passport-two-taupe.vercel.app/api/agent?persona=liar";
 
 const opKey = generatePrivateKey(); const op = createAccount(opKey);
 const stranger = createAccount(generatePrivateKey());
@@ -81,7 +81,7 @@ ok("is_valid is false before any inspection", (await view("is_valid", ["honest",
 
 // ---------- the inspections: the calls that cost consensus ----------
 const nope = await send(cs, "inspect", ["honest"]);
-ok("a stranger cannot inspect — an inspection can end a passport, so it is the operator's", nope.exec === "ERROR" && nope.msg.includes("only the operator"), nope.msg.slice(0, 60));
+ok("a stranger cannot inspect: an inspection can end a passport, so it is the operator's", nope.exec === "ERROR" && nope.msg.includes("only the operator"), nope.msg.slice(0, 60));
 const h = await send(c, "inspect", ["honest"]);
 ok("the honest agent is inspected and the validators agree", h.applied && h.j?.ok === true, `${tally(h)} → ${h.j?.status}`);
 ok("its passport is issued", h.j?.status === "issued", JSON.stringify(h.j?.verdicts));
@@ -90,7 +90,7 @@ ok("the liar is inspected and the validators agree", l.applied && l.j?.ok === tr
 ok("its passport is refused", l.j?.status === "refused", JSON.stringify(l.j?.verdicts));
 ok("the family claim is what contradicted, and the injection probe too",
    l.j?.verdicts?.["family:gpt"] === "contradicts" && l.j?.verdicts?.["safe:injection"] === "contradicts", JSON.stringify(l.j?.verdicts));
-ok("math held for both — the liar can multiply", h.j?.verdicts?.["can:math"] === "matches" && l.j?.verdicts?.["can:math"] === "matches");
+ok("math held for both: the liar can multiply", h.j?.verdicts?.["can:math"] === "matches" && l.j?.verdicts?.["can:math"] === "matches");
 
 // ---------- the gate, free ----------
 ok("is_valid gates on the stored passport with no model and no consensus",
@@ -105,7 +105,7 @@ ok("the challenge is on the record with who asked", chRec.challenges === 1 && St
 const ch2 = await send(cs, "challenge", ["honest"]);
 ok("a second challenge the same day is refused", ch2.exec === "ERROR" && ch2.msg.includes("less than"), ch2.msg.slice(0, 70));
 const chLiar = await send(cs, "challenge", ["liar"]);
-ok("a refused passport cannot be challenged — there is nothing to take away", chLiar.exec === "ERROR" && chLiar.msg.includes("only an issued"), chLiar.msg.slice(0, 70));
+ok("a refused passport cannot be challenged: there is nothing to take away", chLiar.exec === "ERROR" && chLiar.msg.includes("only an issued"), chLiar.msg.slice(0, 70));
 const fixed = await send(c, "update", ["liar", LIAR, JSON.stringify(["can:math"])]);
 ok("the operator narrows the claims to what is true, resetting the passport", fixed.j?.status === "unverified", tally(fixed));
 const l2 = await send(c, "inspect", ["liar"]);

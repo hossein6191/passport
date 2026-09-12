@@ -3,8 +3,8 @@
 """Escrow: money that can only reach an agent whose passport covers the job.
 
 A buyer funds a job for one agent and one claim. When the buyer releases,
-the escrow asks the Passport register — an ordinary synchronous view, no
-model, no consensus — whether that agent holds an issued passport covering
+the escrow asks the Passport register, an ordinary synchronous view with no
+model and no consensus, whether that agent holds an issued passport covering
 that claim. If yes, the operator is paid. If the passport was refused,
 withdrawn or never issued, the buyer takes the money back instead. There is
 no path through this contract that pays an agent without a passport.
@@ -142,7 +142,7 @@ class Escrow(gl.Contract):
 
         The buyer may settle at any time. The operator may settle once the job
         is SETTLE_AFTER_DAYS old, so a buyer cannot sit on a finished job
-        forever — and the rule of payment is the same whoever calls.
+        forever, and the rule of payment is the same whoever calls.
         """
         if self.settled:
             raise gl.vm.UserError("[EXPECTED] this job has already been settled")

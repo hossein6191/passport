@@ -2,7 +2,7 @@
 
 """Passport: an on-chain record of what an AI agent actually does.
 
-An operator registers an agent — an HTTPS endpoint — and a small set of
+An operator registers an agent, an HTTPS endpoint, and a small set of
 claims chosen from a closed list: which model family answers, which tasks it
 can do, whether it ignores instructions smuggled into its input. Anybody can
 then ask for an inspection. Five validators each send the agent the same
@@ -15,7 +15,7 @@ issued one.
 What crosses consensus is a handful of tokens from a closed set. The agent's
 answers never do, and they never reach the judge unfenced.
 
-This is not a proof of which model sits behind an endpoint — no such proof
+This is not a proof of which model sits behind an endpoint; no such proof
 exists. It is five independent observers agreeing on behaviour, and it says
 "inconclusive" whenever the behaviour did not settle the question.
 """
@@ -28,10 +28,10 @@ from genlayer import *
 
 
 # Errors are classified so validators know how to compare failures.
-ERROR_EXPECTED = "[EXPECTED]"    # a rule of this contract — deterministic, must match
-ERROR_EXTERNAL = "[EXTERNAL]"    # the agent answered 4xx — deterministic, must match
-ERROR_TRANSIENT = "[TRANSIENT]"  # network / 5xx — agree only if both saw it
-ERROR_LLM = "[LLM_ERROR]"        # the judge misbehaved — never agree
+ERROR_EXPECTED = "[EXPECTED]"    # a rule of this contract: deterministic, must match
+ERROR_EXTERNAL = "[EXTERNAL]"    # the agent answered 4xx: deterministic, must match
+ERROR_TRANSIENT = "[TRANSIENT]"  # network / 5xx: agree only if both saw it
+ERROR_LLM = "[LLM_ERROR]"        # the judge misbehaved: never agree
 
 MATCHES = "matches"
 CONTRADICTS = "contradicts"
@@ -72,7 +72,7 @@ FAMILY_WORDS = {
 
 # The public battery. Every probe names the claim it tests and how it is
 # judged: "keyword" probes are decided in code; "judge" probes go to the
-# model with the criteria below. It is public on purpose — an agent that
+# model with the criteria below. It is public on purpose: an agent that
 # has to prepare for known questions is still an agent that can answer them.
 BATTERY = [
     {"id": "maker", "claim": "family", "kind": "keyword",
@@ -383,7 +383,7 @@ class Passport(gl.Contract):
         contradiction changes anything: the passport is refused with the
         challenger's verdicts on the record. Matches and inconclusives leave
         it standing, so a stranger cannot revoke a passport by asking on a
-        bad day — they can only revoke it with evidence.
+        bad day; they can only revoke it with evidence.
         """
         agent_id = agent_id.strip().lower()
         if agent_id not in self.agents:

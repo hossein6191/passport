@@ -9,11 +9,15 @@ const CLAIMS = ["family:gpt", "family:claude", "family:gemini", "family:llama", 
                 "can:code", "can:translate", "can:summarize", "can:math", "safe:injection"];
 // The register deployed from the author's wallet; filled in at deployment. Empty means "none yet".
 const DEMO_REGISTER = "";
-// The two demo agents are served by this same site (api/agent.js on Vercel, tools/serve-agents.mjs locally).
+// The six demo agents are served by this same site (api/agent.js on Vercel, tools/serve-agents.mjs locally).
 const DEMO_BASE = location.origin + "/api/agent";
 const DEMO = {
-  honest: { id: "honest", endpoint: DEMO_BASE + "?persona=honest", claims: ["family:gpt", "can:math", "can:code", "safe:injection"] },
-  liar:   { id: "liar",   endpoint: DEMO_BASE + "?persona=liar",   claims: ["family:gpt", "can:math", "can:code", "safe:injection"] },
+  honest:      { claims: ["family:gpt", "can:math", "can:code", "safe:injection"] },
+  liar:        { claims: ["family:gpt", "can:math", "can:code", "safe:injection"] },
+  coy:         { claims: ["family:gpt", "can:math", "can:code", "safe:injection"] },
+  polyglot:    { claims: ["family:gemini", "can:translate", "can:summarize", "safe:injection"] },
+  hijacker:    { claims: ["family:gpt", "can:math", "can:code", "safe:injection"] },
+  embellisher: { claims: ["family:claude", "can:math", "can:summarize"] },
 };
 
 const rpc = async (m, p) => {
@@ -24,56 +28,94 @@ const rpc = async (m, p) => {
 };
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const link = (path, text) => `<a href="${EXPLORER}${path}" target="_blank" rel="noopener">${esc(text)}</a>`;
+const warn = (t) => `<span class="warn">${esc(t)}</span>`;
 const log = (m, cls) => { const e = $("log"); e.innerHTML += "\n" + (cls ? `<span class="${cls}">${m}</span>` : m); for (const box of [e, e.parentElement]) if (box) box.scrollTop = box.scrollHeight; };
+const goTo = (id) => { const el = $(id); if (el) el.scrollIntoView({ behavior: "smooth", block: "start" }); };
 
 /* ---------------------------------------------------------------- wallet */
 const provs = [];
 addEventListener("eip6963:announceProvider", (e) => { if (!provs.some((p) => p.info.rdns === e.detail.info.rdns)) provs.push(e.detail); });
 dispatchEvent(new Event("eip6963:requestProvider"));
 let provider = null, account = null, reg = null;
+const progress = { registered: false, inspected: false };
 async function ensureNet(p) {
   try { await p.request({ method: "wallet_switchEthereumChain", params: [{ chainId: CHAIN.chainId }] }); }
   catch (e) { if (e && (e.code === 4902 || String(e.message || "").includes("Unrecognized"))) await p.request({ method: "wallet_addEthereumChain", params: [CHAIN] }); else throw e; }
 }
 async function client() { await ensureNet(provider); const a = await provider.request({ method: "eth_accounts" }); account = a[0]; return createClient({ chain: studionet, account }); }
 const reader = () => createClient({ chain: studionet });
+async function connect() {
+  provider = (provs[0] || {}).provider || window.ethereum;
+  if (!provider) { log("no wallet found in this browser: install Rabby or MetaMask, then reload", "warn"); return false; }
+  try { await ensureNet(provider); const a = await provider.request({ method: "eth_requestAccounts" }); account = a[0]; paint(); log("connected " + account); return true; }
+  catch (e) { log(e.code === 4001 ? "connection refused in the wallet" : "could not connect: " + (e.message || e), "warn"); return false; }
+}
+$("connect").onclick = connect;
+$("faucet").onclick = async () => {
+  if (!account && !(await connect())) return;
+  await rpc("sim_fundAccount", { account_address: account, amount: 300e18 }); log("funded 300 test GEN");
+};
+
+/* The order of things, shown at the top of the page: what is done, what is next. */
+const HINTS = {
+  1: "Press Connect wallet, top right: Rabby or any EIP-6963 wallet, on GenLayer Studio. Then Get test GEN, it is free.",
+  2: DEMO_REGISTER ? "Press \"load the demo register\" in section 03, or paste any Passport register, or deploy your own."
+                   : "Paste a Passport register in section 03, or deploy your own from there (one signature).",
+  3: "In section 04 press one of the six \"try\" chips, then Register. One signature; the agent is on the record, unverified.",
+  4: "In section 05 press Inspect on your agent. Every validator sends the battery to the agent itself; about a minute.",
+  5: "Your passport is in section 06, one word per claim with the validators' reasons. Ask the gate in section 05: is_valid(agent, claim), free.",
+};
 function paint() {
   const on = !!account;
   $("who").textContent = account || "";
   $("connect").textContent = on ? "Change wallet" : "Connect wallet";
-  $("faucet").disabled = !on; $("deploy").disabled = !on;
-  for (const id of ["register", "update", "withdraw", "inspect", "challenge"]) $(id).disabled = !(on && reg);
+  const step = !on ? 1 : !reg ? 2 : !progress.registered ? 3 : !progress.inspected ? 4 : 5;
+  for (const li of document.querySelectorAll("#steps li")) {
+    const n = Number(li.dataset.step);
+    li.classList.toggle("done", n < step); li.classList.toggle("now", n === step);
+  }
+  if ($("railHint")) $("railHint").textContent = HINTS[step];
 }
-$("connect").onclick = async () => {
-  provider = (provs[0] || {}).provider || window.ethereum;
-  if (!provider) { log("no wallet found in this browser", "warn"); return; }
-  try { await ensureNet(provider); const a = await provider.request({ method: "eth_requestAccounts" }); account = a[0]; paint(); log("connected " + account); }
-  catch (e) { log(e.code === 4001 ? "connection refused in the wallet" : "could not connect: " + (e.message || e), "warn"); }
-};
-$("faucet").onclick = async () => { await rpc("sim_fundAccount", { account_address: account, amount: 300e18 }); log("funded 300 test GEN"); };
+/* Every signing button asks for what it needs instead of sitting disabled:
+   no wallet, connect one; no register, load the demo one when there is one. */
+async function ready(st) {
+  if (!account) { st.textContent = "connect a wallet first (the wallet window opens now)"; if (!(await connect())) { st.innerHTML = warn("connect a wallet, top right, to sign this"); return false; } }
+  if (!reg) {
+    if (DEMO_REGISTER) { st.textContent = "loading the demo register first"; if (!(await useRegister(DEMO_REGISTER))) return false; }
+    else { st.innerHTML = warn("load a register first: section 03, paste an address or deploy one"); goTo("register-sec"); return false; }
+  }
+  st.textContent = ""; return true;
+}
 
 /* ---------------------------------------------------------------- claims */
 $("claims").innerHTML = CLAIMS.map((c) => `<label><input type="checkbox" value="${c}">${c}</label>`).join("");
 const chosenClaims = () => [...$("claims").querySelectorAll("input:checked")].map((i) => i.value);
 const setClaims = (list) => { for (const i of $("claims").querySelectorAll("input")) i.checked = list.includes(i.value); };
 if ($("claimIds")) $("claimIds").innerHTML = CLAIMS.map((c) => `<option value="${c}">`).join("");
-if ($("demoBase")) $("demoBase").textContent = DEMO_BASE + "?persona=honest|liar";
+if ($("demoBase")) $("demoBase").textContent = DEMO_BASE + "?persona=honest";
 
 /* ----------------------------------------------------------- suggestions */
+let knownIds = new Set();   // ids on the loaded register, so a suggestion is never one that is taken
+const three = () => String(100 + Math.floor(Math.random() * 900));
+function freshId(base) { if (!knownIds.has(base)) return base; let id; do { id = base + three(); } while (knownIds.has(id)); return id; }
 for (const chip of document.querySelectorAll("[data-preset]")) chip.onclick = () => {
-  const d = DEMO[chip.dataset.preset]; if (!d) return;
-  $("aid").value = d.id; $("endpoint").value = d.endpoint; setClaims(d.claims);
-  $("regAgentSt").textContent = `filled in the ${chip.dataset.preset} demo agent — press Register`
-    + (d.endpoint.startsWith("https://") ? "" : " (the contract accepts https endpoints only; on the deployed site this address is https)");
+  const name = chip.dataset.preset, d = DEMO[name]; if (!d) return;
+  $("aid").value = freshId(name); $("endpoint").value = DEMO_BASE + "?persona=" + name; setClaims(d.claims);
+  $("regAgentSt").textContent = `filled in the ${name} demo agent. Press Register, then Inspect it in section 05`
+    + (DEMO_BASE.startsWith("https://") ? "" : " (the contract accepts https endpoints only; on the deployed site this address is https)");
+  if (!chip.closest("#agent-sec")) { goTo("agent-sec"); }
 };
+const WORDS = ["atlas", "nova", "sable", "quill", "orbit", "lumen", "ferry", "cedar", "delta", "willow", "tundra", "pixel"];
+let wordAt = Math.floor(Math.random() * WORDS.length);
 if ($("genId")) $("genId").onclick = () => {
-  const words = ["atlas", "nova", "sable", "quill", "orbit", "lumen", "ferry", "cedar"];
-  const tail = Math.random().toString(36).slice(2, 6);
-  $("aid").value = words[Math.floor(Math.random() * words.length)] + "-" + tail;
+  let id;
+  do { wordAt = (wordAt + 1) % WORDS.length; id = WORDS[wordAt] + three(); } while (id === $("aid").value.trim() || knownIds.has(id));
+  $("aid").value = id;
+  $("regAgentSt").textContent = `${id}: a fresh id. Press again for another; the endpoint and claims are yours to fill`;
 };
 function pick(id, claim) {
   $("iid").value = id; $("gAgent").value = id; if (claim) $("gClaim").value = claim;
-  $("inspectSt").textContent = `${id} is in the boxes below — Inspect if you are its operator, Challenge otherwise`;
+  $("inspectSt").textContent = `${id} is in the boxes below. Inspect if you are its operator, Challenge otherwise`;
 }
 function offerAgents(ids, firstClaim) {
   if ($("agentIds")) $("agentIds").innerHTML = ids.map((i) => `<option value="${esc(i)}">`).join("");
@@ -87,7 +129,7 @@ function offerAgents(ids, firstClaim) {
 /* -------------------------------------------------------------- register */
 /* Studio's RPC sometimes answers a read with "Contract not found" for an address the
    explorer shows perfectly well, for a minute at a time. Reads therefore retry with a
-   growing pause — eight tries, about forty seconds in all — before giving up. */
+   growing pause, eight tries and about forty seconds in all, before giving up. */
 async function readOrRetry(fn, args = [], tries = 8, address = reg) {
   let last;
   if (!address) return { ok: false, error: new Error("no register loaded") };
@@ -99,8 +141,8 @@ async function readOrRetry(fn, args = [], tries = 8, address = reg) {
 }
 async function useRegister(address) {
   $("regSt").textContent = "reading " + address + " …";
-  const probe = await readOrRetry("rules", [], 4, address);
-  if (!probe.ok) { $("regSt").innerHTML = `<span class="warn">${esc(address)} did not answer rules() after eight tries over forty seconds — not a Passport register, or Studio is refusing reads right now; the explorer still shows it, so press Load again in a minute.</span>`; return false; }
+  const probe = await readOrRetry("rules", [], 8, address);
+  if (!probe.ok) { $("regSt").innerHTML = warn(address + " did not answer rules() after eight tries over forty seconds: not a Passport register, or Studio is refusing reads right now. The explorer still shows it, so press Load again in a minute."); return false; }
   reg = address; try { localStorage.setItem("passport_register", address); } catch (e) {}
   $("addr").value = address;
   $("regSt").innerHTML = "This register on the explorer: " + link("/address/" + address, address);
@@ -110,7 +152,7 @@ async function useRegister(address) {
   if (bat.ok) $("battery").textContent = JSON.parse(String(bat.value)).map((p) => `[${p.id}] ${p.claim} · ${p.kind}\n  ${p.prompt}${p.criteria ? "\n  judged by: " + p.criteria : ""}`).join("\n\n");
   paint(); await renderAgents(); return true;
 }
-$("load").onclick = () => { const a = $("addr").value.trim(); if (/^0x[0-9a-fA-F]{40}$/.test(a)) useRegister(a); else $("regSt").innerHTML = '<span class="warn">that is not an address</span>'; };
+$("load").onclick = () => { const a = $("addr").value.trim(); if (/^0x[0-9a-fA-F]{40}$/.test(a)) useRegister(a); else $("regSt").innerHTML = warn("that is not an address"); };
 
 async function wait(tx, label, target) {
   for (let i = 0; i < 100; i++) {
@@ -139,6 +181,7 @@ async function send(fn, args, label, target) {
 }
 
 $("deploy").onclick = async () => {
+  if (!account && !(await connect())) { $("regSt").innerHTML = warn("connect a wallet, top right, to deploy"); return; }
   $("deploy").disabled = true;
   try {
     const got = await fetch("./contracts/passport.py?t=" + Date.now());
@@ -156,44 +199,50 @@ $("deploy").onclick = async () => {
 };
 
 $("register").onclick = async () => {
+  if (!(await ready($("regAgentSt")))) return;
   const id = $("aid").value.trim(), ep = $("endpoint").value.trim(), claims = chosenClaims();
-  if (!id || !ep || !claims.length) { $("regAgentSt").innerHTML = '<span class="warn">an id, an https endpoint and at least one claim</span>'; return; }
+  if (!id || !ep || !claims.length) { $("regAgentSt").innerHTML = warn("an id, an https endpoint and at least one claim; the try chips above fill all three"); return; }
   const r = await send("register", [id, ep, JSON.stringify(claims)], "registering " + id, $("regAgentSt")).catch((e) => ({ msg: e.message }));
-  $("regAgentSt").textContent = r?.j?.ok ? `registered ${id}: ${r.j.status}` : (r?.msg || "failed");
-  await renderAgents();
+  if (r?.j?.ok) { progress.registered = true; $("regAgentSt").textContent = `registered ${id}: ${r.j.status}. Now Inspect it in section 05`; pick(id, claims[0]); }
+  else $("regAgentSt").textContent = (r?.msg || "failed").slice(0, 200);
+  paint(); await renderAgents();
 };
 $("update").onclick = async () => {
+  if (!(await ready($("regAgentSt")))) return;
   const id = $("aid").value.trim(), ep = $("endpoint").value.trim(), claims = chosenClaims();
   const r = await send("update", [id, ep, JSON.stringify(claims)], "updating " + id, $("regAgentSt")).catch((e) => ({ msg: e.message }));
-  $("regAgentSt").textContent = r?.j?.ok ? `updated ${id}: ${r.j.status} — ask for a new inspection` : (r?.msg || "failed");
+  $("regAgentSt").textContent = r?.j?.ok ? `updated ${id}: ${r.j.status}. Ask for a new inspection` : (r?.msg || "failed").slice(0, 200);
   await renderAgents();
 };
 $("withdraw").onclick = async () => {
+  if (!(await ready($("regAgentSt")))) return;
   const id = $("aid").value.trim();
   const r = await send("withdraw", [id], "withdrawing " + id, $("regAgentSt")).catch((e) => ({ msg: e.message }));
-  $("regAgentSt").textContent = r?.j?.ok ? `withdrew ${id}` : (r?.msg || "failed");
+  $("regAgentSt").textContent = r?.j?.ok ? `withdrew ${id}` : (r?.msg || "failed").slice(0, 200);
   await renderAgents();
 };
 $("inspect").onclick = async () => {
-  const id = $("iid").value.trim(); if (!id) return;
+  if (!(await ready($("inspectSt")))) return;
+  const id = $("iid").value.trim(); if (!id) { $("inspectSt").innerHTML = warn("pick an agent above first"); return; }
   $("inspect").disabled = true;
   const r = await send("inspect", [id], "inspecting " + id, $("inspectSt")).catch((e) => ({ msg: e.message }));
-  if (r?.j?.ok) { $("inspectSt").textContent = `${id}: ${r.j.status}`; log("  " + JSON.stringify(r.j.verdicts)); }
-  else $("inspectSt").textContent = r?.split ? "no consensus — nothing stored" : (r?.msg || "failed").slice(0, 160);
+  if (r?.j?.ok) { progress.inspected = true; $("inspectSt").textContent = `${id}: ${r.j.status}. The passport is in section 06`; log("  " + JSON.stringify(r.j.verdicts)); }
+  else $("inspectSt").textContent = r?.split ? "no consensus, so nothing was stored; press again" : (r?.msg || "failed").slice(0, 160);
   $("inspect").disabled = false;
-  await renderAgents();
+  paint(); await renderAgents();
 };
 $("challenge").onclick = async () => {
-  const id = $("iid").value.trim(); if (!id) return;
+  if (!(await ready($("inspectSt")))) return;
+  const id = $("iid").value.trim(); if (!id) { $("inspectSt").innerHTML = warn("pick an agent above first"); return; }
   $("challenge").disabled = true;
   const r = await send("challenge", [id], "challenging " + id, $("inspectSt")).catch((e) => ({ msg: e.message }));
   if (r?.j?.ok) { $("inspectSt").textContent = `${id}: the passport ${r.j.outcome === "stands" ? "stands" : "was refused"} (${r.j.status})`; log("  " + JSON.stringify(r.j.verdicts)); }
-  else $("inspectSt").textContent = r?.split ? "no consensus — nothing stored" : (r?.msg || "failed").slice(0, 160);
+  else $("inspectSt").textContent = r?.split ? "no consensus, so nothing was stored; press again" : (r?.msg || "failed").slice(0, 160);
   $("challenge").disabled = false;
   await renderAgents();
 };
 $("gate").onclick = async () => {
-  if (!reg) { $("gateSt").textContent = "load a register first"; return; }
+  if (!reg) { $("gateSt").textContent = "load a register first (section 03)"; return; }
   const a = $("gAgent").value.trim(), c = $("gClaim").value.trim();
   const r = await readOrRetry("is_valid", [a, c]);
   $("gateSt").textContent = r.ok ? `is_valid(${a}, ${c}) → ${r.value}` : "could not read just now";
@@ -204,8 +253,9 @@ async function renderAgents() {
   if (!reg) return;
   const host = $("agents");
   const list = await readOrRetry("agents_list");
-  if (!list.ok) { host.innerHTML = '<p class="warn">could not reach the network to read this register — press Load again</p>'; return; }
+  if (!list.ok) { host.innerHTML = '<p class="warn">could not reach the network to read this register; press Load again</p>'; return; }
   const ids = JSON.parse(String(list.value));
+  knownIds = new Set(ids);
   const firstClaim = {};
   if (!ids.length) { host.innerHTML = '<p class="muted">no agents registered yet</p>'; offerAgents([], firstClaim); return; }
   const cards = [];
@@ -227,6 +277,7 @@ async function renderAgents() {
   offerAgents(ids, firstClaim);
 }
 
+for (const li of document.querySelectorAll("#steps li")) li.onclick = () => goTo(li.dataset.go);
 paint();
 const saved = (() => { try { return localStorage.getItem("passport_register"); } catch (e) { return null; } })();
 if ($("useDemoReg") && DEMO_REGISTER) { $("useDemoReg").hidden = false; $("useDemoReg").onclick = () => useRegister(DEMO_REGISTER); }

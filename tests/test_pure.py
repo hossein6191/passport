@@ -384,7 +384,7 @@ class TestStaticRules:
     # later that is neither gated nor listed here fails this test.
     OPEN_ON_PURPOSE = {
         "register": "anyone may put their own agent on the record; the sender becomes its operator, and that binding is what everything else is gated on",
-        "challenge": "anyone may put an issued passport to the test — a buyer verifying before paying is the whole point — but only a contradiction changes state, at most once a day per agent, and the challenger is recorded on the row",
+        "challenge": "anyone may put an issued passport to the test (a buyer verifying before paying is the whole point), but only a contradiction changes state, at most once a day per agent, and the challenger is recorded on the row",
     }
 
     def test_every_write_is_bound_to_the_sender_or_listed_with_a_reason(self):

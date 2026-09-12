@@ -23,4 +23,4 @@ createServer(async (req, res) => {
     res.writeHead(200, { "Content-Type": TYPES[extname(p)] || "application/octet-stream", "Cache-Control": "no-store" });
     res.end(body);
   } catch { res.writeHead(404); res.end("not found"); }
-}).listen(PORT, () => console.log(`passport on http://localhost:${PORT}  ·  agents at /api/agent?persona=honest|liar`));
+}).listen(PORT, () => console.log(`passport on http://localhost:${PORT}  ·  agents at /api/agent?persona=honest|liar|coy|polyglot|hijacker|embellisher`));

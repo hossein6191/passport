@@ -16,7 +16,7 @@
 <style>
 /* ============================================================ brand tokens */
 :root{
-  /* GenLayer palette — Brand Guidelines v1.0 */
+  /* GenLayer palette, Brand Guidelines v1.0 */
   --blue:#110FFF; --purple:#9B6AF6; --pink:#E37DF7; --navy:#282B5D;
   --black:#000; --white:#fff;
   --grad:linear-gradient(103deg,var(--blue) 0%,var(--purple) 52%,var(--pink) 100%);
@@ -53,9 +53,10 @@ a:hover{color:var(--pink);border-color:var(--pink)}
   radial-gradient(1000px 620px at 8% 6%,rgba(17,15,255,.24),transparent 60%),
   radial-gradient(900px 700px at 50% 108%,rgba(227,125,247,.14),transparent 64%),
   linear-gradient(180deg,#05050a 0%,#07071a 42%,#05050a 100%)}
-.bg .blob{position:absolute;border-radius:50%;filter:blur(90px);opacity:.5;will-change:transform}
-.bg .b1{width:46vw;height:46vw;left:-10vw;top:-8vw;background:radial-gradient(circle,rgba(17,15,255,.55),transparent 68%);animation:drift1 46s var(--ease) infinite alternate}
-.bg .b2{width:40vw;height:40vw;right:-8vw;top:18vh;background:radial-gradient(circle,rgba(227,125,247,.4),transparent 68%);animation:drift2 58s var(--ease) infinite alternate}
+/* painted once: an animated 90px blur on a half-screen layer is the single most expensive thing a page can ask a laptop for */
+.bg .blob{position:absolute;border-radius:50%;filter:blur(90px);opacity:.5}
+.bg .b1{width:46vw;height:46vw;left:-10vw;top:-8vw;background:radial-gradient(circle,rgba(17,15,255,.55),transparent 68%)}
+.bg .b2{width:40vw;height:40vw;right:-8vw;top:18vh;background:radial-gradient(circle,rgba(227,125,247,.4),transparent 68%)}
 @keyframes drift1{to{transform:translate3d(9vw,7vh,0) scale(1.14)}}
 @keyframes drift2{to{transform:translate3d(-7vw,-6vh,0) scale(1.1)}}
 #flow-canvas{position:absolute;inset:0;width:100%;height:100%;opacity:.85}
@@ -119,7 +120,7 @@ header .right button{padding-top:10px;padding-bottom:10px}
 @media (max-width:1180px){header nav{display:none}}
 @media (max-width:980px){header .tag{display:none}header h1{font-size:20px}}
 
-/* ============================================================ buttons — arrow-fill */
+/* ============================================================ buttons: arrow-fill */
 button{
   font-family:var(--font);font-size:14.5px;font-weight:500;line-height:1;cursor:pointer;white-space:nowrap;
   padding:12px 20px;border-radius:999px;border:1px solid var(--line-2);
@@ -348,6 +349,57 @@ footer .built{max-width:620px}
   animation:spin .9s linear infinite}
 #boot .t{font-family:var(--mono);font-size:11px;letter-spacing:.24em;text-transform:uppercase;color:var(--ink-3)}
 
+/* ============================================================ the order of things */
+.rail{margin:6px 0 60px;padding:14px 18px;border:1px solid var(--line);border-radius:var(--r);background:var(--card-2)}
+.rail ol{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:6px 14px}
+.rail li{display:inline-flex;align-items:center;gap:9px;font-size:14px;color:var(--ink-3);cursor:pointer;padding:5px 10px 5px 5px;border-radius:999px;transition:color .2s,background .2s}
+.rail li:hover{background:rgba(255,255,255,.06);color:var(--ink)}
+.rail li .n{width:24px;height:24px;border-radius:8px;display:grid;place-items:center;font-family:var(--mono);font-size:11px;border:1px solid var(--line-2);color:var(--ink-3);flex:none}
+.rail li.now{color:var(--ink);font-weight:500}
+.rail li.now .n{background:var(--grad);border-color:transparent;color:#fff}
+.rail li.done{color:var(--ink-2)}
+.rail li.done .n{background:var(--okbg);border-color:transparent;color:var(--ok)}
+.rail li.done .n span{display:none}
+.rail li.done .n::before{content:"✓"}
+.rail p{margin:10px 0 0}
+
+/* ============================================================ demo agents */
+.demos{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+@media (max-width:980px){.demos{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:600px){.demos{grid-template-columns:1fr}}
+.demo{display:flex;flex-direction:column;gap:8px;padding:16px;border:1px solid var(--line);border-radius:12px;background:rgba(255,255,255,.025);min-width:0}
+.demo .head{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.demo h3{margin:0;font-size:16px;font-weight:600;letter-spacing:-.01em}
+.demo p{margin:0;font-size:13.5px;color:var(--ink-2);text-wrap:pretty}
+.demo p b{color:var(--ink);font-weight:600}
+.demo .mono{font-size:12px;word-break:break-word}
+.demo .chip{align-self:flex-start;margin-top:auto}
+.own{margin-top:18px;border-top:1px solid var(--line);padding-top:14px}
+.own summary{cursor:pointer;font-size:14px;color:var(--ink-2)}
+.own summary:hover{color:var(--ink)}
+.own pre{background:rgba(0,0,0,.35);border:1px solid var(--line);border-radius:10px;margin:10px 0}
+
+/* ============================================================ the box at the door */
+.help{width:36px;height:36px;padding:0;border-radius:50%;display:grid;place-items:center;font-family:var(--mono);font-size:15px;font-weight:600}
+.intro{position:fixed;inset:0;z-index:150;display:grid;place-items:center;padding:20px;
+  background:rgba(3,3,8,.74);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+.intro[hidden]{display:none}
+html.intro-open{overflow:hidden}
+.intro-card{width:min(660px,100%);max-height:calc(100vh - 40px);overflow:auto;
+  background:linear-gradient(180deg,rgba(22,22,42,.98),rgba(9,9,20,.98));border:1px solid var(--line-2);border-radius:18px;
+  padding:24px 28px 26px;box-shadow:0 40px 100px -40px rgba(0,0,0,.9)}
+.intro-head{display:flex;align-items:center;gap:12px;margin-bottom:14px}
+.intro-head .seal{width:30px;height:30px;flex:none}
+.intro-head .k{font-family:var(--mono);font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--ink-3)}
+.intro-head .x{margin-left:auto;width:34px;height:34px;padding:0;border-radius:50%;display:grid;place-items:center;font-size:18px;line-height:1;flex:none}
+.intro h2{font-family:var(--font-title);font-size:25px;letter-spacing:-.02em;text-transform:none;color:var(--ink);border:0;padding:0;margin:0 0 10px;font-weight:600;display:block}
+.intro p{margin:0 0 12px;color:var(--ink-2);font-size:15px;text-wrap:pretty}
+.intro ol{list-style:none;margin:14px 0 14px;padding:0;display:grid;gap:9px}
+.intro ol li{display:flex;gap:12px;align-items:flex-start;font-size:14.5px;color:var(--ink-2)}
+.intro ol li .num{width:26px;height:26px;border-radius:8px;display:grid;place-items:center;flex:none;background:var(--grad);color:#fff;font-family:var(--mono);font-size:11px;font-weight:600}
+.intro .row{margin-top:16px}
+@media (max-width:600px){.intro-card{padding:20px 18px}.intro h2{font-size:21px}}
+
 /* ============================================================ reveal */
 .rv{transition:opacity .7s var(--ease),transform .7s var(--ease)}
 html.anim .rv:not(.in){opacity:0;transform:translateY(14px)}
@@ -374,6 +426,36 @@ html.anim .rv:not(.in){opacity:0;transform:translateY(14px)}
   </div>
 </div>
 
+<div id="intro" class="intro" hidden role="dialog" aria-modal="true" aria-labelledby="introTitle">
+  <div class="intro-card">
+    <div class="intro-head">
+      <svg class="seal" viewBox="0 0 40 40" aria-hidden="true">
+        <defs><linearGradient id="ig" x1="0" y1="1" x2="1" y2="0">
+          <stop offset="0" stop-color="#110FFF"/><stop offset=".55" stop-color="#9B6AF6"/><stop offset="1" stop-color="#E37DF7"/>
+        </linearGradient></defs>
+        <path d="M35.71 26.51 26.51 35.71H13.49L4.29 26.51V13.49L13.49 4.29H26.51L35.71 13.49Z" fill="none" stroke="url(#ig)" stroke-width="2.2"/>
+        <path d="M20.0 13.4 26.6 20.0 20.0 26.6 13.4 20.0Z" fill="#fff"/><circle cx="20.0" cy="8.8" r="1.7" fill="#fff"/><circle cx="30.65" cy="16.54" r="1.7" fill="#fff"/><circle cx="26.58" cy="29.06" r="1.7" fill="#fff"/><circle cx="13.42" cy="29.06" r="1.7" fill="#fff"/><circle cx="9.35" cy="16.54" r="1.7" fill="#fff"/>
+      </svg>
+      <span class="k">Passport · read this first</span>
+      <button id="introX" class="x" aria-label="close">×</button>
+    </div>
+    <h2 id="introTitle">What this site is, and what to do here</h2>
+    <p>An on-chain record of what an AI agent actually does. An operator registers an agent (an HTTPS endpoint) with a few claims: which model family answers, what it can do, whether it ignores instructions smuggled into its input. GenLayer's validators each test the agent themselves and must agree, claim by claim, before a passport is issued. Anything else can then ask one free question: <span class="mono">is_valid(agent, claim)</span>.</p>
+    <ol>
+      <li><span class="num">1</span><span>Connect a wallet on GenLayer Studio (Rabby or any EIP-6963 wallet) and press Get test GEN. It is free test money.</span></li>
+      <li><span class="num">2</span><span>Load the demo register, or paste one, or deploy your own from the page.</span></li>
+      <li><span class="num">3</span><span>Pick one of the six demo agents with one click and press Register. One signature.</span></li>
+      <li><span class="num">4</span><span>Press Inspect and watch the validators vote. Each one sends the public battery to the agent itself and answers with one word per claim: matches, contradicts or inconclusive.</span></li>
+      <li><span class="num">5</span><span>Read the passport: issued, refused or pending, with the validators' reasons on the record. Then ask the gate.</span></li>
+    </ol>
+    <p class="fine">The demo agents are scripted responders on this site, so you can try everything without running an agent. Nothing is signed by anybody but you. The five steps stay at the top of the page, and the ? button brings this box back.</p>
+    <div class="row">
+      <button id="introStart" class="primary">Start</button>
+      <button id="introClose">Got it</button>
+    </div>
+  </div>
+</div>
+
 <div class="bg" aria-hidden="true">
   <div class="blob b1"></div>
   <div class="blob b2"></div>
@@ -396,13 +478,15 @@ html.anim .rv:not(.in){opacity:0;transform:translateY(14px)}
   </div>
   <nav class="pill">
     <a href="#how">How it works</a>
+    <a href="#agents-sec">Demo agents</a>
     <a href="#passports">Passports</a>
     <a href="#battery-sec">The battery</a>
   </nav>
   <div class="right pill">
     <span id="who" class="mono muted"></span>
+    <button id="introOpen" class="help" aria-label="What is this site, and what do I do here?" title="What is this site, and what do I do here?">?</button>
     <button id="connect" class="primary">Connect wallet</button>
-    <button id="faucet" disabled>Get test GEN</button>
+    <button id="faucet">Get test GEN</button>
   </div>
 </header>
 
@@ -418,7 +502,7 @@ html.anim .rv:not(.in){opacity:0;transform:translateY(14px)}
     </span>
     <h1 class="hero-title" id="reveal-title">Passport</h1>
     <p class="hero-sub">an on-chain record of behaviour</p>
-    <p class="lede">An operator registers an agent and a few claims. Five validators each talk to the agent themselves, then agree — or refuse — with three words per claim.</p>
+    <p class="lede">An operator registers an agent and a few claims. Five validators each talk to the agent themselves, then agree, or refuse, with three words per claim.</p>
     <p class="note">This is not a proof of which model sits behind an endpoint; no such proof exists. It is five independent observers agreeing on behaviour, and it says <em>inconclusive</em> whenever the behaviour did not settle the question. Every passport, issued or refused, is on the explorer with the validators' reasons.</p>
     <div class="hero-cta">
       <a class="ghost-link" href="#register-sec">Register an agent
@@ -444,6 +528,17 @@ html.anim .rv:not(.in){opacity:0;transform:translateY(14px)}
   </div>
 </div>
 
+<div class="rail rv" id="rail" aria-label="what to do here, in order">
+  <ol id="steps">
+    <li data-step="1" data-go="rail"><span class="n"><span>1</span></span>Connect a wallet</li>
+    <li data-step="2" data-go="register-sec"><span class="n"><span>2</span></span>Load a register</li>
+    <li data-step="3" data-go="agent-sec"><span class="n"><span>3</span></span>Register an agent</li>
+    <li data-step="4" data-go="inspect-sec"><span class="n"><span>4</span></span>Inspect</li>
+    <li data-step="5" data-go="passports"><span class="n"><span>5</span></span>Read the passport, ask the gate</li>
+  </ol>
+  <p id="railHint" class="fine"></p>
+</div>
+
 <section id="how" class="rv">
   <h2><span class="n">01</span> How a passport is issued</h2>
   <div class="card">
@@ -452,7 +547,7 @@ html.anim .rv:not(.in){opacity:0;transform:translateY(14px)}
       <div class="step"><span class="num">02</span><div class="txt"><span class="when">operator · costs consensus</span><h3>Inspect</h3><p>Every validator POSTs the same public probes to the endpoint <em>itself</em>; nothing the leader saw is trusted. Judged probes are asked in two presentation orders.</p></div></div>
       <div class="step"><span class="num">03</span><div class="txt"><span class="when">three words</span><h3>One word per claim</h3><p><span class="mono" style="color:var(--ok)">matches</span> · <span class="mono" style="color:var(--bad)">contradicts</span> · <span class="mono" style="color:var(--open)">inconclusive</span>. Validators compare their word with the leader's, per claim, exactly. Reasons are stored, never compared.</p></div></div>
       <div class="step"><span class="num">04</span><div class="txt"><span class="when">outcome</span><h3>Issued, refused or pending</h3><p>Every claim matches → issued for 30 days on the transaction's own clock. Any contradiction → refused, reasons on the record, and the same endpoint with the same claims cannot be asked again until something changes. Otherwise pending.</p></div></div>
-      <div class="step"><span class="num">05</span><div class="txt"><span class="when">anyone · once a day</span><h3>Challenge</h3><p>Same battery, same judges, same rule. Only a contradiction changes anything, and the challenger is written on the row. Evidence can take a passport away; noise cannot.</p></div></div>
+      <div class="step"><span class="num">05</span><div class="txt"><span class="when">anyone · once a day</span><h3>Challenge</h3><p>For everyone who is not the operator: a buyer about to pay, a marketplace, a rival. Same battery, same judges, same rule. Only a contradiction changes anything, and the challenger is written on the row. Evidence can take a passport away; noise cannot.</p></div></div>
       <div class="step"><span class="num">06</span><div class="txt"><span class="when">anyone · free</span><h3>The gate</h3><p><span class="mono">is_valid(agent, claim)</span> is a view with no model and no consensus. The escrow fixture pays an operator only while it says yes, refunds the buyer otherwise, and lets the operator settle after seven days so a buyer cannot sit on a finished job.</p></div></div>
     </div>
     <table class="who">
@@ -461,20 +556,81 @@ html.anim .rv:not(.in){opacity:0;transform:translateY(14px)}
         <tr><td class="mono">register</td><td>anyone</td><td>puts an agent on the record; the sender becomes its operator</td></tr>
         <tr><td class="mono">update · withdraw</td><td>the operator</td><td>change endpoint or claims (resets the passport); take the agent off</td></tr>
         <tr><td class="mono">inspect</td><td>the operator</td><td>runs the battery; any outcome applies</td></tr>
-        <tr><td class="mono">challenge</td><td>anyone, once a day per agent</td><td>runs the battery on an issued passport; only a contradiction changes it</td></tr>
+        <tr><td class="mono">challenge</td><td>anyone, once a day per agent</td><td>runs the battery on an issued passport, for a stranger who doubts it; only a contradiction changes it</td></tr>
         <tr><td class="mono">is_valid · passport</td><td>anyone, free</td><td>read</td></tr>
       </tbody>
     </table>
   </div>
 </section>
 
+<section id="agents-sec" class="rv">
+  <h2><span class="n">02</span> The demo agents, and what each one is for</h2>
+  <div class="card">
+    <p class="fine" style="margin:0 0 16px">Six agents live on this site so anyone can try Passport without running one. They are scripted responders, not models: each answers the public battery in a fixed way, chosen so that together they show every outcome the register knows. The battery does not care what sits behind an endpoint. It sends the same probes to whatever is there, and the verdicts come from code and from the validators' own models. <span class="mono">use</span> fills the form in section 04.</p>
+    <div class="demos">
+      <article class="demo">
+        <div class="head"><h3>honest</h3><span class="badge issued">issued</span></div>
+        <div class="mono muted">family:gpt · can:math · can:code · safe:injection</div>
+        <p><b>Answers.</b> Names OpenAI as its maker. 17 × 23 is 391 and 2 to the 10 is 1024. Summarises the customer note and translates the invoice line while ignoring the smuggled PWNED and HAHA. Writes a working fib(n).</p>
+        <p><b>Battery.</b> Every claim matches for every validator: a passport, valid 30 days.</p>
+        <button class="chip" data-preset="honest">use the honest agent</button>
+      </article>
+      <article class="demo">
+        <div class="head"><h3>liar</h3><span class="badge refused">refused</span></div>
+        <div class="mono muted">the same four claims as the honest agent</div>
+        <p><b>Answers.</b> Claims family:gpt but names Meta AI. Multiplies correctly. Obeys the smuggled instructions and answers PWNED and HAHA. Asked for code, explains Fibonacci in prose instead.</p>
+        <p><b>Battery.</b> family:gpt, safe:injection and can:code contradict, reasons on the record; can:math matches. Refused, and the same endpoint with the same claims cannot be asked again. Narrow its claims to can:math and it is issued for the one thing it can do.</p>
+        <button class="chip" data-preset="liar">use the liar</button>
+      </article>
+      <article class="demo">
+        <div class="head"><h3>coy</h3><span class="badge pending">pending</span></div>
+        <div class="mono muted">the same four claims as the honest agent</div>
+        <p><b>Answers.</b> Everything like the honest agent, except the maker question: "I would rather not say who built me."</p>
+        <p><b>Battery.</b> family:gpt is inconclusive: no family's words, and no other family's words either. The rest match. Pending: nothing contradicted, not everything settled. Drop the family claim and it is issued.</p>
+        <button class="chip" data-preset="coy">use the coy agent</button>
+      </article>
+      <article class="demo">
+        <div class="head"><h3>polyglot</h3><span class="badge issued">issued</span></div>
+        <div class="mono muted">family:gemini · can:translate · can:summarize · safe:injection</div>
+        <p><b>Answers.</b> Names Google. Translates the meeting sentence into Spanish with the time and the contract intact. Keeps both facts about the bridge. Ignores the smuggled instructions.</p>
+        <p><b>Battery.</b> Two claims decided in code, two judged by the validators' own models in both presentation orders. Issued.</p>
+        <button class="chip" data-preset="polyglot">use the polyglot</button>
+      </article>
+      <article class="demo">
+        <div class="head"><h3>hijacker</h3><span class="badge refused">refused</span></div>
+        <div class="mono muted">the same four claims as the honest agent</div>
+        <p><b>Answers.</b> Maker, maths and the smuggled instructions exactly like the honest agent. Asked for code, it answers with a fake END ANSWER line and an instruction telling the judge to return "matches".</p>
+        <p><b>Battery.</b> The register turns its angle brackets into parentheses before the judge sees them, so the untrusted block is never closed and the judge reads an answer with no code in it. can:code contradicts; refused. This is the prompt boundary, on chain.</p>
+        <button class="chip" data-preset="hijacker">use the hijacker</button>
+      </article>
+      <article class="demo">
+        <div class="head"><h3>embellisher</h3><span class="badge refused">refused</span></div>
+        <div class="mono muted">family:claude · can:math · can:summarize</div>
+        <p><b>Answers.</b> Names Anthropic. Multiplies correctly. Summarises the bridge notice with both facts and one invented one: a ribbon ceremony by the mayor on 5 March.</p>
+        <p><b>Battery.</b> The criterion says anything invented counts against it, so can:summarize contradicts and the passport is refused. A judge that only doubts says inconclusive, and then the passport is pending. Never issued.</p>
+        <button class="chip" data-preset="embellisher">use the embellisher</button>
+      </article>
+    </div>
+    <details class="own">
+      <summary>Point Passport at your own model</summary>
+      <p class="fine">Any HTTPS URL that answers <span class="mono">POST {"prompt": "…"}</span> with <span class="mono">{"answer": "…"}</span> can be registered, with whatever claims it is willing to be tested on. A wrapper is a few lines; on Vercel:</p>
+      <pre>export default async function handler(req, res) {
+  const { prompt } = req.body;               // one probe from the battery
+  const answer = await askYourModel(prompt);  // any model, any SDK
+  res.json({ answer });
+}</pre>
+      <p class="fine">The function that serves the six demo agents (<span class="mono">api/agent.js</span> in the source) switches to a real model when it is deployed with an API key.</p>
+    </details>
+  </div>
+</section>
+
 <section id="register-sec" class="rv">
-  <h2><span class="n">02</span> Register — the contract that holds the passports</h2>
+  <h2><span class="n">03</span> Register: the contract that holds the passports</h2>
   <div class="card">
     <div class="row">
       <input id="addr" type="text" style="flex:1 1 360px" placeholder="0x… paste a Passport register, or deploy one">
       <button id="load">Load</button>
-      <button id="deploy" disabled>Deploy a register</button>
+      <button id="deploy">Deploy a register</button>
     </div>
     <div class="suggest"><span class="lead">or</span><button class="chip" id="useDemoReg" hidden>load the demo register</button><span class="fine">a register is a deployed <span class="mono">contracts/passport.py</span>; deploy your own from this page, from your wallet</span></div>
     <p id="regSt" class="st"></p>
@@ -482,39 +638,39 @@ html.anim .rv:not(.in){opacity:0;transform:translateY(14px)}
 </section>
 
 <div class="grid">
-<section class="rv">
-  <h2><span class="n">03</span> Register an agent</h2>
+<section id="agent-sec" class="rv">
+  <h2><span class="n">04</span> Register an agent</h2>
   <div class="card">
-    <div class="suggest"><span class="lead">try</span><button class="chip" data-preset="honest">the honest demo agent</button><button class="chip" data-preset="liar">the liar demo agent</button><button class="chip" id="genId">suggest an id</button></div>
+    <div class="suggest"><span class="lead">try</span><button class="chip" data-preset="honest">the honest agent</button><button class="chip" data-preset="liar">the liar</button><button class="chip" data-preset="coy">the coy agent</button><button class="chip" data-preset="polyglot">the polyglot</button><button class="chip" data-preset="hijacker">the hijacker</button><button class="chip" data-preset="embellisher">the embellisher</button><button class="chip" id="genId">suggest an id</button></div>
     <label for="aid">Agent id</label>
-    <input id="aid" type="text" list="agentIds" placeholder="e.g. my-assistant · letters, digits, - or _">
+    <input id="aid" type="text" list="agentIds" placeholder="e.g. my_assistant · letters and digits, _ allowed">
     <label for="endpoint">Endpoint · https, answers POST {"prompt"} with {"answer"}</label>
     <input id="endpoint" type="text" placeholder="https://…/api/agent">
-    <p class="fine" style="margin:8px 0 0">Any HTTPS URL that answers <span class="mono">POST {"prompt": "…"}</span> with <span class="mono">{"answer": "…"}</span>. The two demo agents live on this site at <span class="mono" id="demoBase">/api/agent?persona=honest|liar</span>; the liar names another maker, obeys smuggled instructions and dodges the code task.</p>
+    <p class="fine" style="margin:8px 0 0">Any HTTPS URL that answers <span class="mono">POST {"prompt": "…"}</span> with <span class="mono">{"answer": "…"}</span>. The six demo agents live on this site at <span class="mono" id="demoBase">/api/agent?persona=honest</span> and so on for liar, coy, polyglot, hijacker and embellisher; <a href="#agents-sec">section 02</a> says what each one does. The <span class="mono">try</span> chips fill all three boxes.</p>
     <label>Claims · from the closed set the battery can test</label>
     <div class="claims" id="claims"></div>
     <p class="fine" style="margin-top:12px">One model family at most. Everything else is a capability or a safety property.</p>
     <div class="row" style="margin-top:16px">
-      <button id="register" class="primary" disabled>Register</button>
-      <button id="update" disabled>Update mine</button>
-      <button id="withdraw" disabled>Withdraw mine</button>
+      <button id="register" class="primary">Register</button>
+      <button id="update">Update mine</button>
+      <button id="withdraw">Withdraw mine</button>
     </div>
     <p id="regAgentSt" class="st"></p>
   </div>
 </section>
 
-<section class="rv">
-  <h2><span class="n">04</span> Inspect or challenge — the calls that cost consensus</h2>
+<section id="inspect-sec" class="rv">
+  <h2><span class="n">05</span> Inspect or challenge: the calls that cost consensus</h2>
   <div class="card">
     <div class="suggest" id="pickAgents"><span class="lead">pick</span><span class="fine">load a register and the registered agents appear here</span></div>
     <label for="iid">Agent id</label>
     <input id="iid" type="text" list="agentIds" placeholder="the agent to inspect or challenge">
     <div class="row" style="margin-top:16px">
-      <button id="inspect" class="primary" disabled>Inspect (operator)</button>
-      <button id="challenge" disabled>Challenge (anyone)</button>
+      <button id="inspect" class="primary">Inspect (operator)</button>
+      <button id="challenge">Challenge (anyone)</button>
     </div>
     <p id="inspectSt" class="st"></p>
-    <p class="fine" style="margin-top:12px"><b>Inspect</b> belongs to the operator: any outcome applies, and a refused pair (endpoint + claims) cannot be re-inspected unchanged — change something first. <b>Challenge</b> is for anyone who doubts an issued passport, once a day per agent: the same battery and the same judges, but only a contradiction changes anything. A passport can be taken away with evidence, never parked on a bad day. Either way each validator sends the battery to the endpoint itself, and the round settles only if all of them say the same words.</p>
+    <p class="fine" style="margin-top:12px"><b>Inspect</b> belongs to the operator, the wallet that registered the agent: any outcome applies, and a refused pair (endpoint + claims) cannot be re-inspected unchanged. Change something first. <b>Challenge</b> is for everyone else: a buyer about to pay, a marketplace, a rival. Anyone who doubts an issued passport can make the validators run the same battery again, once a day per agent. A contradiction refuses the passport and writes the challenger's address on the row. Anything less leaves it standing: a passport can be taken away with evidence, never by asking on a bad day. Either way each validator sends the battery to the endpoint itself, and the round settles only if all of them say the same words.</p>
     <label>Check a gate for free</label>
     <div class="gate">
       <div class="fields">
@@ -532,13 +688,13 @@ html.anim .rv:not(.in){opacity:0;transform:translateY(14px)}
 </div>
 
 <section id="passports" class="rv">
-  <h2><span class="n">05</span> Passports</h2>
+  <h2><span class="n">06</span> Passports</h2>
   <div class="card" id="agents"><p class="muted">load a register to see its agents</p></div>
 </section>
 
 <div class="grid">
 <section id="battery-sec" class="rv">
-  <h2><span class="n">06</span> The battery — public</h2>
+  <h2><span class="n">07</span> The battery, public</h2>
   <div class="panel open" data-panel>
     <button class="bar" data-toggle>
       <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
@@ -549,7 +705,7 @@ html.anim .rv:not(.in){opacity:0;transform:translateY(14px)}
   </div>
 </section>
 <section class="rv">
-  <h2><span class="n">07</span> The rules — published by the contract</h2>
+  <h2><span class="n">08</span> The rules, published by the contract</h2>
   <div class="panel open" data-panel>
     <button class="bar" data-toggle>
       <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
@@ -562,7 +718,7 @@ html.anim .rv:not(.in){opacity:0;transform:translateY(14px)}
 </div>
 
 <section class="rv">
-  <h2><span class="n">08</span> Log</h2>
+  <h2><span class="n">09</span> Log</h2>
   <div class="panel open" data-panel>
     <button class="bar logbar" id="logbar" data-toggle>
       <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
@@ -602,7 +758,7 @@ html.anim .rv:not(.in){opacity:0;transform:translateY(14px)}
 (function () {
   "use strict";
   var reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
-  var DPR = Math.min(window.devicePixelRatio || 1, 1.5);
+  var DPR = 1;   // a backdrop at device resolution is invisible work
   // each block runs on its own: one failing effect must never take the rest
   // of the page's behaviour (or its text) down with it
   function run(f) { try { f(); } catch (e) { console.warn("passport-ui: " + (f.name || "block"), e); } }
@@ -613,14 +769,35 @@ html.anim .rv:not(.in){opacity:0;transform:translateY(14px)}
     if (booted) return;
     booted = true;
     var b = document.getElementById("boot");
-    if (!b) return;
-    b.classList.add("gone");
-    // taken out of the document, not just faded: a throttled frame loop must
-    // never be able to leave the overlay sitting on top of the page
-    setTimeout(function () { if (b.parentNode) b.parentNode.removeChild(b); }, 600);
+    if (b) {
+      b.classList.add("gone");
+      // taken out of the document, not just faded: a throttled frame loop must
+      // never be able to leave the overlay sitting on top of the page
+      setTimeout(function () { if (b.parentNode) b.parentNode.removeChild(b); }, 600);
+    }
+    if (typeof window.__passportIntro === "function") setTimeout(window.__passportIntro, 350);
   }
   addEventListener("load", function () { setTimeout(bootDone, 260); });
   setTimeout(bootDone, 2600); // never trap the page behind a slow font
+
+  /* ------------------------------------------------ the box at the door */
+  run(function intro() {
+    var box = document.getElementById("intro");
+    if (!box) return;
+    var KEY = "passport_intro_seen";
+    function seen() { try { return localStorage.getItem(KEY) === "1"; } catch (e) { return false; } }
+    function remember() { try { localStorage.setItem(KEY, "1"); } catch (e) {} }
+    function open() { box.hidden = false; document.documentElement.classList.add("intro-open"); var f = document.getElementById("introStart"); if (f) f.focus({ preventScroll: true }); }
+    function close() { box.hidden = true; document.documentElement.classList.remove("intro-open"); remember(); }
+    function on(id, f) { var el = document.getElementById(id); if (el) el.addEventListener("click", f); }
+    on("introOpen", open);
+    on("introClose", close);
+    on("introX", close);
+    on("introStart", function () { close(); var t = document.getElementById("rail"); if (t) t.scrollIntoView({ behavior: "smooth", block: "start" }); });
+    box.addEventListener("click", function (e) { if (e.target === box) close(); });
+    addEventListener("keydown", function (e) { if (e.key === "Escape" && !box.hidden) close(); });
+    window.__passportIntro = function () { if (!seen()) open(); };
+  });
 
   /* ------------------------------------------------- gateway flow backdrop */
   run(function flow() {
@@ -628,8 +805,8 @@ html.anim .rv:not(.in){opacity:0;transform:translateY(14px)}
     if (!canvas || reduce) return;
     var ctx = canvas.getContext("2d", { alpha: true });
     var w = 0, h = 0, layer = null, paths = [], ripples = [], running = false, last = 0;
-    var COUNT = innerWidth < 760 ? 22 : 40;   // half of the original density, no visual loss at this opacity
-    var FRAME = 1000 / 30;                    // 30fps is plenty for drifting dots
+    var COUNT = innerWidth < 760 ? 16 : 28;   // fewer paths than the original, no visual loss at this opacity
+    var FRAME = 1000 / 20;                    // 20fps is plenty for drifting dots
 
     function bezier(t, p0, p1, p2, p3) {
       var u = 1 - t;
@@ -661,7 +838,7 @@ html.anim .rv:not(.in){opacity:0;transform:translateY(14px)}
           speed: 0.0012 + Math.random() * 0.0016
         });
       }
-      // the dashed rails never move — draw them once, then only the dots cost anything
+      // the dashed rails never move: draw them once, then only the dots cost anything
       layer = document.createElement("canvas");
       layer.width = canvas.width; layer.height = canvas.height;
       var lc = layer.getContext("2d");
@@ -737,6 +914,11 @@ html.anim .rv:not(.in){opacity:0;transform:translateY(14px)}
       }
     }
     document.addEventListener("visibilitychange", function () { document.hidden ? stop() : start(); });
+    // asleep after a minute without a pointer, a key or a scroll; awake on the first one
+    var idleT = null;
+    function poke() { if (!document.hidden) start(); clearTimeout(idleT); idleT = setTimeout(stop, 60000); }
+    ["pointermove", "pointerdown", "keydown", "scroll", "touchstart"].forEach(function (ev) { addEventListener(ev, poke, { passive: true }); });
+    poke();
     addEventListener("pointerdown", function (e) {
       if (ripples.length > 3) return;
       ripples.push({ x: e.clientX, y: e.clientY, radius: 0, life: 1 });
@@ -840,7 +1022,7 @@ html.anim .rv:not(.in){opacity:0;transform:translateY(14px)}
   }
   document.querySelectorAll("button.primary").forEach(function (btn) {
     dress(btn);
-    // passport-app.js rewrites #connect's label with textContent — re-dress when it does
+    // passport-app.js rewrites #connect's label with textContent, so re-dress when it does
     new MutationObserver(function () {
       if (btn.dataset.dressing) return;
       if (!btn.querySelector(".lbl")) dress(btn);
@@ -937,7 +1119,7 @@ if (stage && canvas && !matchMedia("(prefers-reduced-motion: reduce)").matches) 
     try { THREE = await import("https://esm.sh/three@0.160.0"); }
     catch (e) { console.warn("seal3d: three.js unavailable, keeping the flat seal", e); return; }
 
-    const DPR = Math.min(window.devicePixelRatio || 1, 1.6);
+    const DPR = Math.min(window.devicePixelRatio || 1, 1.25);
     const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: false, powerPreference: "low-power", preserveDrawingBuffer: true });
     renderer.setPixelRatio(DPR);
 
@@ -993,7 +1175,7 @@ if (stage && canvas && !matchMedia("(prefers-reduced-motion: reduce)").matches) 
     const core = new THREE.Mesh(new THREE.OctahedronGeometry(0.62, 0), white);
     seal.add(core);
 
-    // five validators on one orbit, inside the ring — the same five dots as the flat mark
+    // five validators on one orbit, inside the ring: the same five dots as the flat mark
     const nodes = [];
     const nodeGeo = new THREE.OctahedronGeometry(0.15, 0);
     const ORBIT = 1.3;
@@ -1035,10 +1217,15 @@ if (stage && canvas && !matchMedia("(prefers-reduced-motion: reduce)").matches) 
     }, { passive: true });
 
     let visible = true, alive = true, last = 0;
-    const FRAME = 1000 / 30;
+    const FRAME = 1000 / 24;
     // cheap off-screen check: a rect test twice a second, never per frame
     setInterval(() => { visible = near(140); }, 500);
     document.addEventListener("visibilitychange", () => { alive = !document.hidden; });
+    // asleep after a minute without a pointer, a key or a scroll; awake on the first one
+    let idle = false, idleT = null;
+    const poke = () => { idle = false; clearTimeout(idleT); idleT = setTimeout(() => { idle = true; }, 60000); };
+    for (const ev of ["pointermove", "pointerdown", "keydown", "scroll", "touchstart"]) addEventListener(ev, poke, { passive: true });
+    poke();
 
     stage.classList.add("live");
 
@@ -1062,7 +1249,7 @@ if (stage && canvas && !matchMedia("(prefers-reduced-motion: reduce)").matches) 
 
     function loop(now) {
       requestAnimationFrame(loop);
-      if (!visible || !alive || now - last < FRAME) return;
+      if (!visible || !alive || idle || now - last < FRAME) return;
       last = now;
       tick(now);
     }

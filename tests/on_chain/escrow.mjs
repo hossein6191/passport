@@ -16,7 +16,7 @@ import { readFileSync } from "node:fs";
 const RPC = "https://studio.genlayer.com/api";
 const rpc = async (m, p) => { let last; for (let i = 0; i < 8; i++) { try { const r = await fetch(RPC, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: m, params: p }) }); return (await r.json()).result; } catch (e) { last = e; await new Promise((x) => setTimeout(x, 2500)); } } throw last; };
 let pass = 0, fail = 0;
-const ok = (n, c, d = "") => { c ? pass++ : fail++; console.log(`${c ? "PASS" : "FAIL"}  ${n}${d ? "  — " + d : ""}`); };
+const ok = (n, c, d = "") => { c ? pass++ : fail++; console.log(`${c ? "PASS" : "FAIL"}  ${n}${d ? "  · " + d : ""}`); };
 const REGISTER = process.env.PASSPORT; const ISSUED = process.env.ISSUED || "honest"; const REFUSED = process.env.REFUSED || "liar"; const CLAIM = process.env.CLAIM || "can:code";
 if (!REGISTER) { console.log("set PASSPORT=0x… to a register with an issued and a refused agent"); process.exit(2); }
 
