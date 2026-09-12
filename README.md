@@ -140,7 +140,7 @@ python tools/mutate.py                        # 23 mutants, all must die, writes
 genvm-lint check contracts/passport.py
 node tools/serve-agents.mjs                   # the site and the six agents on http://localhost:8797
 HONEST_URL=… LIAR_URL=… node tests/on_chain/smoke.mjs      # Studio, throwaway account, 22 checks
-AGENT_BASE=https://…/api/agent node tests/on_chain/personas.mjs   # the four newer agents, 21 checks
+AGENT_BASE=https://…/api/agent node tests/on_chain/personas.mjs   # the four newer agents, 22 checks
 PASSPORT=0x… ISSUED=honest REFUSED=liar CLAIM=can:code OPERATOR_KEY=0x… node tests/on_chain/escrow.mjs
 ```
 
@@ -149,7 +149,10 @@ test passed 22/22 against Studio: every inspection and challenge settling 3 agre
 0 disagree; a stranger's inspection refused, a stranger's challenge standing, a second
 challenge the same day refused. The escrow test passed 12/12: 12 GEN reached the operator
 of a passport-holder, 7 GEN went back to the buyer of a job the passport did not cover, and
-the operator could not settle a job younger than seven days.
+the operator could not settle a job younger than seven days. On 12 September the personas test
+passed 22/22: coy pending with "the answer names no family" on the record, polyglot issued on a
+judged probe, the hijacker refused with the fence holding, the embellisher refused for the invented
+fact; every round 3 agree, 0 or 1 disagree.
 
 ## Rules this was built under
 
