@@ -7,8 +7,8 @@ const EXPLORER = "https://explorer-studio.genlayer.com";
 const CHAIN = { chainId: "0xf22f", chainName: "GenLayer Studio", nativeCurrency: { name: "GEN", symbol: "GEN", decimals: 18 }, rpcUrls: [RPC], blockExplorerUrls: [EXPLORER + "/"] };
 const CLAIMS = ["family:gpt", "family:claude", "family:gemini", "family:llama", "family:mistral", "family:other",
                 "can:code", "can:translate", "can:summarize", "can:math", "safe:injection"];
-// The register deployed from the author's wallet; filled in at deployment. Empty means "none yet".
-const DEMO_REGISTER = "";
+// The register deployed from the author's wallet on 12 September 2026 (see the README's evidence table). Empty would mean "none yet".
+const DEMO_REGISTER = "0x22Fd3B3FbeBdf2176C426B6D76BBcE2936362dDF";
 // The six demo agents are served by this same site (api/agent.js on Vercel, tools/serve-agents.mjs locally).
 const DEMO_BASE = location.origin + "/api/agent";
 const DEMO = {
@@ -150,7 +150,10 @@ async function readOrRetry(fn, args = [], tries = 8, address = reg) {
 async function useRegister(address) {
   $("regSt").textContent = "reading " + address + " …";
   const probe = await readOrRetry("rules", [], 8, address);
-  if (!probe.ok) { $("regSt").innerHTML = warn(address + " did not answer rules() after eight tries over forty seconds: not a Passport register, or Studio is refusing reads right now. The explorer still shows it, so press Load again in a minute."); return false; }
+  if (!probe.ok) {
+    if (address.toLowerCase() === DEMO_REGISTER.toLowerCase() && await showSnapshot("Studio did not answer reads for the demo register after eight tries over forty seconds")) return false;
+    $("regSt").innerHTML = warn(address + " did not answer rules() after eight tries over forty seconds: not a Passport register, or Studio is refusing reads right now. The explorer still shows it, so press Load again in a minute."); return false;
+  }
   reg = address; try { localStorage.setItem("passport_register", address); } catch (e) {}
   $("addr").value = address;
   $("regSt").innerHTML = "This register on the explorer: " + link("/address/" + address, address);
@@ -259,33 +262,55 @@ $("gate").onclick = async () => {
 };
 
 /* ---------------------------------------------------------------- agents */
-async function renderAgents() {
-  if (!reg) return;
-  const host = $("agents");
-  const list = await readOrRetry("agents_list");
-  if (!list.ok) { host.innerHTML = '<p class="warn">could not reach the network to read this register; press Load again</p>'; return; }
-  const ids = JSON.parse(String(list.value));
-  knownIds = new Set(ids);
-  if (lastPreset && knownIds.has($("aid").value.trim())) { $("aid").value = freshId(lastPreset); $("regAgentSt").textContent = `${$("aid").value}: the id was taken on this register, so it was changed`; }
-  const firstClaim = {};
-  if (!ids.length) { host.innerHTML = '<p class="muted">no agents registered yet</p>'; offerAgents([], firstClaim); return; }
-  const cards = [];
-  for (const id of ids.slice().reverse()) {
-    const p = await readOrRetry("passport", [id]); if (!p.ok) continue;
-    const a = JSON.parse(String(p.value));
-    firstClaim[a.agent] = (a.claims || [])[0];
-    const rows = Object.entries(a.verdicts || {}).map(([c, v]) => `<div class="v ${esc(v)}">${esc(c)} → ${esc(v)}</div><div class="reason">${esc((a.reasons || {})[c] || "")}</div>`).join("");
-    cards.push(`<div class="agent"><div class="head"><span class="name" data-pick="${esc(a.agent)}" title="put this agent in the inspect and gate boxes">${esc(a.agent)}</span><span class="badge ${esc(a.status)}">${esc(a.status)}</span></div>
+function agentCard(a) {
+  const rows = Object.entries(a.verdicts || {}).map(([c, v]) => `<div class="v ${esc(v)}">${esc(c)} → ${esc(v)}</div><div class="reason">${esc((a.reasons || {})[c] || "")}</div>`).join("");
+  return `<div class="agent"><div class="head"><span class="name" data-pick="${esc(a.agent)}" title="put this agent in the inspect and gate boxes">${esc(a.agent)}</span><span class="badge ${esc(a.status)}">${esc(a.status)}</span></div>
       <div class="mono muted">${esc(a.endpoint)}</div>
       <div class="mono muted">operator ${esc(a.operator)} · inspections ${a.inspections}${a.issued_at_inspection ? " · issued at #" + a.issued_at_inspection : ""}${a.issued_at ? " · issued " + esc(String(a.issued_at).slice(0, 10)) + (a.expired ? " · <b>expired</b>" : " · valid " + a.valid_days + " days") : ""}</div>
       <div class="mono">claims: ${(a.claims || []).map(esc).join(", ")}</div>
       ${a.inspections ? `<div class="mono muted">last inspected by ${esc(a.last_inspector)}</div>` : ""}
       ${a.challenges ? `<div class="mono muted">challenged ${a.challenges}× · last by ${esc(a.last_challenge?.by || "")} on ${esc(String(a.last_challenge?.at || "").slice(0, 10))} → <b>${esc(a.last_challenge?.outcome || "")}</b></div>` : ""}
-      ${rows ? `<div class="verdicts">${rows}</div>` : '<p class="fine">not inspected yet</p>'}</div>`);
-  }
-  host.innerHTML = cards.join("");
+      ${rows ? `<div class="verdicts">${rows}</div>` : '<p class="fine">not inspected yet</p>'}</div>`;
+}
+/* Paint passports from a list of rows (newest first), live or from the snapshot. */
+function paintAgents(items, ids, note) {
+  const host = $("agents");
+  knownIds = new Set(ids);
+  if (lastPreset && knownIds.has($("aid").value.trim())) { $("aid").value = freshId(lastPreset); $("regAgentSt").textContent = `${$("aid").value}: the id was taken on this register, so it was changed`; }
+  const firstClaim = {};
+  for (const a of items) firstClaim[a.agent] = (a.claims || [])[0];
+  host.innerHTML = (note ? `<p class="fine" style="margin:0 0 14px">${note}</p>` : "") + (items.length ? items.map(agentCard).join("") : '<p class="muted">no agents registered yet</p>');
   for (const n of host.querySelectorAll(".name[data-pick]")) n.onclick = () => { pick(n.dataset.pick, firstClaim[n.dataset.pick]); $("iid").scrollIntoView({ behavior: "smooth", block: "center" }); };
   offerAgents(ids, firstClaim);
+}
+async function renderAgents() {
+  if (!reg) return;
+  const list = await readOrRetry("agents_list");
+  if (!list.ok) {
+    if (reg.toLowerCase() === DEMO_REGISTER.toLowerCase() && await showSnapshot("live reads of the demo register are failing right now")) return;
+    $("agents").innerHTML = '<p class="warn">could not reach the network to read this register; press Load again</p>'; return;
+  }
+  const ids = JSON.parse(String(list.value));
+  const items = [];
+  for (const id of ids.slice().reverse()) { const p = await readOrRetry("passport", [id]); if (p.ok) items.push(JSON.parse(String(p.value))); }
+  paintAgents(items, ids, "");
+}
+/* The snapshot: data/snapshot.json, taken by tools/snapshot.mjs, shown only for the
+   demo register and only when Studio refuses to read it, labelled with its date. */
+async function showSnapshot(why) {
+  try {
+    const s = await (await fetch("./data/snapshot.json?t=" + Date.now())).json();
+    if (!s || String(s.register).toLowerCase() !== DEMO_REGISTER.toLowerCase()) return false;
+    const taken = String(s.taken).slice(0, 16).replace("T", " ") + " UTC";
+    $("addr").value = s.register;
+    $("regSt").innerHTML = warn(why + ". Showing a snapshot of the register taken " + taken + "; the explorer still has it live: ") + link("/address/" + s.register, s.register) + warn(". Press Load again in a minute.");
+    if ($("regLink")) { $("regLink").href = EXPLORER + "/address/" + s.register; $("regLink").target = "_blank"; $("regLink").rel = "noopener"; }
+    $("rules").textContent = JSON.stringify(s.rules, null, 2);
+    $("battery").textContent = (s.battery || []).map((p) => `[${p.id}] ${p.claim} · ${p.kind}\n  ${p.prompt}${p.criteria ? "\n  judged by: " + p.criteria : ""}`).join("\n\n");
+    const ids = s.order || [];
+    paintAgents(ids.slice().reverse().map((id) => s.agents[id]).filter(Boolean), ids, `<b>snapshot</b> taken ${esc(taken)}, shown because live reads are failing; every row below is also on the explorer`);
+    return true;
+  } catch (e) { return false; }
 }
 
 for (const li of document.querySelectorAll("#steps li")) li.onclick = () => goTo(li.dataset.go);
