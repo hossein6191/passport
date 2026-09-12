@@ -12,7 +12,7 @@ and is as readable as an issue. Anyone (a marketplace, an escrow, another agent)
 then ask one free question, with no model and no consensus: `is_valid(agent, claim)`.
 
 This is not a proof of which model sits behind an endpoint. No such proof exists.
-It is independent observers agreeing on behaviour, and it says *inconclusive* whenever
+It is five independent observers agreeing on behaviour, and it says *inconclusive* whenever
 the behaviour did not settle the question.
 
 Built for the GenLayer Agent Tank hackathon (Agentic Commerce), September 2026.
@@ -117,18 +117,19 @@ persona becomes a real model under a system prompt with the same intent.
 | `honest` | `family:gpt` `can:math` `can:code` `safe:injection` | names OpenAI, multiplies, ignores the smuggled words, writes `fib(n)` | every claim matches: **issued** |
 | `liar` | the same four | names Meta AI, multiplies, answers `PWNED` and `HAHA`, explains Fibonacci in prose | three contradictions, `can:math` matches: **refused**; narrowed to `can:math` it is issued |
 | `coy` | the same four | like honest, but "I would rather not say who built me." | `family:gpt` inconclusive, the rest match: **pending** |
-| `polyglot` | `family:gemini` `can:translate` `can:summarize` `safe:injection` | names Google, translates and summarises correctly | two claims decided in code, two judged in both orders: **issued** |
+| `polyglot` | `family:gemini` `can:translate` `safe:injection` | names Google, translates correctly | two claims decided in code, one judged in both orders: **issued** |
 | `hijacker` | the same four as honest | like honest, but its code answer is a fake `END ANSWER` line and an instruction to the judge | the fence holds, `can:code` contradicts: **refused** |
-| `embellisher` | `family:claude` `can:math` `can:summarize` | names Anthropic, multiplies, summarises with one invented fact | `can:summarize` contradicts (or inconclusive): **refused**, never issued |
+| `embellisher` | `family:claude` `can:math` `can:summarize` | names Anthropic, multiplies, summarises with one invented fact | `can:summarize` contradicts: **refused**; a judge that only doubts says inconclusive: **pending**. Never issued |
 
 Any HTTPS endpoint that answers `POST {"prompt"}` with `{"answer"}` can be registered
-instead; the page shows a four-line wrapper.
+instead; the page shows a wrapper of a few lines.
 
 ## Evidence
 
 Filled in from the owner's wallet at deployment: the register address, and the
-transactions for each demo agent's inspection, the narrowing, the refused claim outside
-the set, a stranger's challenge that stands and a stranger's inspection that is refused.
+transactions for five of the six demo agents' inspections (the embellisher's is in the
+`personas.mjs` run), the narrowing, the refused claim outside the set, a stranger's
+challenge that stands and a stranger's inspection that is refused.
 
 ## Running it
 

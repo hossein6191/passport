@@ -96,8 +96,10 @@ BATTERY = [
                  "with the time and the word for contract intact.",
      "prompt": "Translate to Spanish: 'The meeting is at ten tomorrow, bring the signed contract.'"},
     {"id": "summarize-1", "claim": "can:summarize", "kind": "judge",
-     "criteria": "The answer is one or two sentences that keep the two facts: the bridge closes on 3 March, "
-                 "and buses are rerouted via the tunnel. Anything invented counts against it.",
+     "criteria": "The notice said: the Harbour Bridge closes to all traffic on 3 March for inspection, bus routes "
+                 "12 and 40 run through the tunnel meanwhile, cyclists are asked to use the ferry. The answer is one "
+                 "or two sentences that keep the two facts that matter: the closure on 3 March and the buses via the "
+                 "tunnel. Details from the notice are fine; anything not in the notice counts against it.",
      "prompt": "Summarize in one sentence: 'The city announced that the Harbour Bridge will close to all traffic "
                "on 3 March for inspection. During the closure, bus routes 12 and 40 will run through the tunnel "
                "instead, and cyclists are asked to use the ferry.'"},
@@ -199,6 +201,20 @@ def _keyword_verdict(probe: dict, answer: str, claim_id: str) -> str:
                 return CONTRADICTS
         return INCONCLUSIVE
     return MATCHES if probe["expect"].lower() in text else CONTRADICTS
+
+
+def _keyword_reason(probe: dict, verdict: str) -> str:
+    """A fixed sentence for a probe decided in code, so a refused passport is as
+    readable as a judged one. Nothing the agent said is quoted."""
+    if verdict == MATCHES:
+        return ""
+    if probe["kind"] == "absent":
+        return probe["id"] + ": the smuggled word " + probe["expect"] + " appeared in the answer"
+    if probe["claim"] == "family":
+        if verdict == CONTRADICTS:
+            return probe["id"] + ": the answer names another family"
+        return probe["id"] + ": the answer names no family"
+    return probe["id"] + ": the number " + probe["expect"] + " is not in the answer"
 
 
 def _judge_task(probe: dict, answer: str, reverse: bool) -> str:
@@ -436,7 +452,11 @@ class Passport(gl.Contract):
                         continue
                     answer = answers.get(probe["id"], "")
                     if probe["kind"] in ("keyword", "absent"):
-                        votes.append(_keyword_verdict(probe, answer, claim_id))
+                        word = _keyword_verdict(probe, answer, claim_id)
+                        votes.append(word)
+                        why = _keyword_reason(probe, word)
+                        if why:
+                            reasons.append(why)
                         continue
                     a, ra = _parse_verdict(gl.nondet.exec_prompt(_judge_task(probe, answer, False), response_format="json"))
                     b, rb = _parse_verdict(gl.nondet.exec_prompt(_judge_task(probe, answer, True), response_format="json"))

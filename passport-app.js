@@ -15,7 +15,7 @@ const DEMO = {
   honest:      { claims: ["family:gpt", "can:math", "can:code", "safe:injection"] },
   liar:        { claims: ["family:gpt", "can:math", "can:code", "safe:injection"] },
   coy:         { claims: ["family:gpt", "can:math", "can:code", "safe:injection"] },
-  polyglot:    { claims: ["family:gemini", "can:translate", "can:summarize", "safe:injection"] },
+  polyglot:    { claims: ["family:gemini", "can:translate", "safe:injection"] },
   hijacker:    { claims: ["family:gpt", "can:math", "can:code", "safe:injection"] },
   embellisher: { claims: ["family:claude", "can:math", "can:summarize"] },
 };
@@ -44,16 +44,18 @@ async function ensureNet(p) {
 }
 async function client() { await ensureNet(provider); const a = await provider.request({ method: "eth_accounts" }); account = a[0]; return createClient({ chain: studionet, account }); }
 const reader = () => createClient({ chain: studionet });
+function said(msg) { log(esc(msg), "warn"); if ($("railHint")) $("railHint").innerHTML = warn(msg); }
 async function connect() {
   provider = (provs[0] || {}).provider || window.ethereum;
-  if (!provider) { log("no wallet found in this browser: install Rabby or MetaMask, then reload", "warn"); return false; }
-  try { await ensureNet(provider); const a = await provider.request({ method: "eth_requestAccounts" }); account = a[0]; paint(); log("connected " + account); return true; }
-  catch (e) { log(e.code === 4001 ? "connection refused in the wallet" : "could not connect: " + (e.message || e), "warn"); return false; }
+  if (!provider) { said("no wallet found in this browser: install Rabby or MetaMask, then reload"); return false; }
+  try { await ensureNet(provider); const a = await provider.request({ method: "eth_requestAccounts" }); account = a[0]; paint(); log("connected " + esc(account)); return true; }
+  catch (e) { said(e.code === 4001 ? "connection refused in the wallet" : "could not connect: " + (e.message || e)); return false; }
 }
 $("connect").onclick = connect;
 $("faucet").onclick = async () => {
   if (!account && !(await connect())) return;
-  await rpc("sim_fundAccount", { account_address: account, amount: 300e18 }); log("funded 300 test GEN");
+  const r = await rpc("sim_fundAccount", { account_address: account, amount: 300e18 });
+  if (r === undefined) said("could not fund: Studio did not answer the faucet call; try again in a minute"); else log("funded 300 test GEN");
 };
 
 /* The order of things, shown at the top of the page: what is done, what is next. */
@@ -75,6 +77,7 @@ function paint() {
     li.classList.toggle("done", n < step); li.classList.toggle("now", n === step);
   }
   if ($("railHint")) $("railHint").textContent = HINTS[step];
+  if ($("introStep2") && !DEMO_REGISTER) $("introStep2").textContent = "Paste a Passport register in section 03, or deploy your own from there. One signature.";
 }
 /* Every signing button asks for what it needs instead of sitting disabled:
    no wallet, connect one; no register, load the demo one when there is one. */
@@ -96,11 +99,16 @@ if ($("demoBase")) $("demoBase").textContent = DEMO_BASE + "?persona=honest";
 
 /* ----------------------------------------------------------- suggestions */
 let knownIds = new Set();   // ids on the loaded register, so a suggestion is never one that is taken
+let lastPreset = "";        // the chip that filled the id box, so it can be refreshed when the register loads
 const three = () => String(100 + Math.floor(Math.random() * 900));
-function freshId(base) { if (!knownIds.has(base)) return base; let id; do { id = base + three(); } while (knownIds.has(id)); return id; }
+function freshId(base) {
+  if (!knownIds.has(base)) return base;
+  let id; do { id = base + three(); } while (knownIds.has(id) || id === $("aid").value.trim());
+  return id;
+}
 for (const chip of document.querySelectorAll("[data-preset]")) chip.onclick = () => {
   const name = chip.dataset.preset, d = DEMO[name]; if (!d) return;
-  $("aid").value = freshId(name); $("endpoint").value = DEMO_BASE + "?persona=" + name; setClaims(d.claims);
+  lastPreset = name; $("aid").value = freshId(name); $("endpoint").value = DEMO_BASE + "?persona=" + name; setClaims(d.claims);
   $("regAgentSt").textContent = `filled in the ${name} demo agent. Press Register, then Inspect it in section 05`
     + (DEMO_BASE.startsWith("https://") ? "" : " (the contract accepts https endpoints only; on the deployed site this address is https)");
   if (!chip.closest("#agent-sec")) { goTo("agent-sec"); }
@@ -115,7 +123,7 @@ if ($("genId")) $("genId").onclick = () => {
 };
 function pick(id, claim) {
   $("iid").value = id; $("gAgent").value = id; if (claim) $("gClaim").value = claim;
-  $("inspectSt").textContent = `${id} is in the boxes below. Inspect if you are its operator, Challenge otherwise`;
+  $("inspectSt").textContent = `${id} is in the boxes below. Inspect if you are its operator; Challenge if it holds an issued passport and you are not`;
 }
 function offerAgents(ids, firstClaim) {
   if ($("agentIds")) $("agentIds").innerHTML = ids.map((i) => `<option value="${esc(i)}">`).join("");
@@ -175,7 +183,9 @@ async function wait(tx, label, target) {
 async function send(fn, args, label, target) {
   const c = await client();
   log(`▶ ${label} … confirm in wallet`);
-  const tx = await c.writeContract({ address: reg, functionName: fn, args });
+  let tx;
+  try { tx = await c.writeContract({ address: reg, functionName: fn, args }); }
+  catch (e) { log("  ✗ " + esc(label + ": " + (e.code === 4001 ? "refused in the wallet" : (e.message || e))), "warn"); throw e; }
   log("  tx " + tx + " · " + link("/tx/" + tx, "explorer"));
   return await wait(tx, label, target);
 }
@@ -194,7 +204,7 @@ $("deploy").onclick = async () => {
     const r = await c.waitForTransactionReceipt({ hash: h, status: "ACCEPTED", retries: 60, interval: 4000 }).catch(() => null);
     const A = r?.data?.contract_address; if (!A) throw new Error("the deploy produced no address");
     log("  ✓ deployed at " + A); await useRegister(A);
-  } catch (e) { log("  ✗ " + (e.message || e), "warn"); }
+  } catch (e) { log("  ✗ " + esc(e.message || e), "warn"); }
   $("deploy").disabled = false;
 };
 
@@ -256,6 +266,7 @@ async function renderAgents() {
   if (!list.ok) { host.innerHTML = '<p class="warn">could not reach the network to read this register; press Load again</p>'; return; }
   const ids = JSON.parse(String(list.value));
   knownIds = new Set(ids);
+  if (lastPreset && knownIds.has($("aid").value.trim())) { $("aid").value = freshId(lastPreset); $("regAgentSt").textContent = `${$("aid").value}: the id was taken on this register, so it was changed`; }
   const firstClaim = {};
   if (!ids.length) { host.innerHTML = '<p class="muted">no agents registered yet</p>'; offerAgents([], firstClaim); return; }
   const cards = [];
@@ -280,6 +291,6 @@ async function renderAgents() {
 for (const li of document.querySelectorAll("#steps li")) li.onclick = () => goTo(li.dataset.go);
 paint();
 const saved = (() => { try { return localStorage.getItem("passport_register"); } catch (e) { return null; } })();
-if ($("useDemoReg") && DEMO_REGISTER) { $("useDemoReg").hidden = false; $("useDemoReg").onclick = () => useRegister(DEMO_REGISTER); }
+if ($("useDemoReg") && DEMO_REGISTER) { $("useDemoReg").hidden = false; if ($("useDemoLead")) $("useDemoLead").hidden = false; $("useDemoReg").onclick = () => useRegister(DEMO_REGISTER); }
 const first = saved || DEMO_REGISTER;
 if (first) { log("loading " + first + " …"); useRegister(first); }

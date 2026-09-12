@@ -83,8 +83,8 @@ tunnelmole held), but nothing on chain points at a tunnel.
 A visitor has to be able to try the register without running an agent, and a reviewer
 has to be able to see every outcome without trusting a screenshot. So the six personas
 are chosen by outcome: issued twice (one by keyword probes, one by judged probes),
-refused three ways (a lie, a hijack of the judge, an invented fact) and pending once (a
-maker that will not say). They are scripted because the battery does not care what
+refused three ways (a lie, a hijack of the judge, an invented fact; the third may also
+land as pending when the judge only doubts) and pending once (a maker that will not say). They are scripted because the battery does not care what
 answers: the verdicts come from code and from the validators' own models, and a script
 is the one kind of agent whose answers a reviewer can read in full before the test. The
 page says so in as many words. The same function runs a real model when it is deployed

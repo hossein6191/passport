@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Passport · what an AI agent actually does</title>
-<meta name="description" content="An on-chain record of what an AI agent actually does. Independent validators run one public battery and agree in three words per claim.">
+<meta name="description" content="An on-chain record of what an AI agent actually does. Independent validators run one public battery and agree with one of three words per claim.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2040%2040'%3E%3Cdefs%3E%3ClinearGradient%20id='g'%20x1='0'%20y1='1'%20x2='1'%20y2='0'%3E%3Cstop%20offset='0'%20stop-color='%23110FFF'/%3E%3Cstop%20offset='.55'%20stop-color='%239B6AF6'/%3E%3Cstop%20offset='1'%20stop-color='%23E37DF7'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect%20width='40'%20height='40'%20rx='9'%20fill='%2305050a'/%3E%3Cpath%20d='M35.71%2026.51%2026.51%2035.71H13.49L4.29%2026.51V13.49L13.49%204.29H26.51L35.71%2013.49Z'%20fill='none'%20stroke='url(%23g)'%20stroke-width='2.4'/%3E%3Cpath%20d='M20.0%2013.8%2026.2%2020.0%2020.0%2026.2%2013.8%2020.0Z'%20fill='%23fff'/%3E%3Ccircle%20cx='20.0'%20cy='8.8'%20r='1.9'%20fill='%23fff'/%3E%3Ccircle%20cx='30.65'%20cy='16.54'%20r='1.9'%20fill='%23fff'/%3E%3Ccircle%20cx='26.58'%20cy='29.06'%20r='1.9'%20fill='%23fff'/%3E%3Ccircle%20cx='13.42'%20cy='29.06'%20r='1.9'%20fill='%23fff'/%3E%3Ccircle%20cx='9.35'%20cy='16.54'%20r='1.9'%20fill='%23fff'/%3E%3C/svg%3E">
 
 <!-- Switzer = GenLayer body typeface (Fontshare). Lineca is the licensed title face:
@@ -422,7 +422,7 @@ html.anim .rv:not(.in){opacity:0;transform:translateY(14px)}
       <path d="M20.0 13.4 26.6 20.0 20.0 26.6 13.4 20.0Z" fill="#fff"/><circle cx="20.0" cy="8.8" r="1.7" fill="#fff"/><circle cx="30.65" cy="16.54" r="1.7" fill="#fff"/><circle cx="26.58" cy="29.06" r="1.7" fill="#fff"/><circle cx="13.42" cy="29.06" r="1.7" fill="#fff"/><circle cx="9.35" cy="16.54" r="1.7" fill="#fff"/>
     </svg>
     <div class="ring"></div>
-    <div class="t">loading the register</div>
+    <div class="t">Passport</div>
   </div>
 </div>
 
@@ -443,7 +443,7 @@ html.anim .rv:not(.in){opacity:0;transform:translateY(14px)}
     <p>An on-chain record of what an AI agent actually does. An operator registers an agent (an HTTPS endpoint) with a few claims: which model family answers, what it can do, whether it ignores instructions smuggled into its input. GenLayer's validators each test the agent themselves and must agree, claim by claim, before a passport is issued. Anything else can then ask one free question: <span class="mono">is_valid(agent, claim)</span>.</p>
     <ol>
       <li><span class="num">1</span><span>Connect a wallet on GenLayer Studio (Rabby or any EIP-6963 wallet) and press Get test GEN. It is free test money.</span></li>
-      <li><span class="num">2</span><span>Load the demo register, or paste one, or deploy your own from the page.</span></li>
+      <li><span class="num">2</span><span id="introStep2">Load the demo register, or paste one, or deploy your own from the page.</span></li>
       <li><span class="num">3</span><span>Pick one of the six demo agents with one click and press Register. One signature.</span></li>
       <li><span class="num">4</span><span>Press Inspect and watch the validators vote. Each one sends the public battery to the agent itself and answers with one word per claim: matches, contradicts or inconclusive.</span></li>
       <li><span class="num">5</span><span>Read the passport: issued, refused or pending, with the validators' reasons on the record. Then ask the gate.</span></li>
@@ -502,7 +502,7 @@ html.anim .rv:not(.in){opacity:0;transform:translateY(14px)}
     </span>
     <h1 class="hero-title" id="reveal-title">Passport</h1>
     <p class="hero-sub">an on-chain record of behaviour</p>
-    <p class="lede">An operator registers an agent and a few claims. Five validators each talk to the agent themselves, then agree, or refuse, with three words per claim.</p>
+    <p class="lede">An operator registers an agent and a few claims. Five validators each talk to the agent themselves, then agree, or refuse, with one of three words per claim.</p>
     <p class="note">This is not a proof of which model sits behind an endpoint; no such proof exists. It is five independent observers agreeing on behaviour, and it says <em>inconclusive</em> whenever the behaviour did not settle the question. Every passport, issued or refused, is on the explorer with the validators' reasons.</p>
     <div class="hero-cta">
       <a class="ghost-link" href="#register-sec">Register an agent
@@ -591,9 +591,9 @@ html.anim .rv:not(.in){opacity:0;transform:translateY(14px)}
       </article>
       <article class="demo">
         <div class="head"><h3>polyglot</h3><span class="badge issued">issued</span></div>
-        <div class="mono muted">family:gemini · can:translate · can:summarize · safe:injection</div>
-        <p><b>Answers.</b> Names Google. Translates the meeting sentence into Spanish with the time and the contract intact. Keeps both facts about the bridge. Ignores the smuggled instructions.</p>
-        <p><b>Battery.</b> Two claims decided in code, two judged by the validators' own models in both presentation orders. Issued.</p>
+        <div class="mono muted">family:gemini · can:translate · safe:injection</div>
+        <p><b>Answers.</b> Names Google. Translates the meeting sentence into Spanish with the time and the contract intact. Ignores the smuggled instructions.</p>
+        <p><b>Battery.</b> Two claims decided in code, one judged by the validators' own models in both presentation orders. Issued.</p>
         <button class="chip" data-preset="polyglot">use the polyglot</button>
       </article>
       <article class="demo">
@@ -632,7 +632,7 @@ html.anim .rv:not(.in){opacity:0;transform:translateY(14px)}
       <button id="load">Load</button>
       <button id="deploy">Deploy a register</button>
     </div>
-    <div class="suggest"><span class="lead">or</span><button class="chip" id="useDemoReg" hidden>load the demo register</button><span class="fine">a register is a deployed <span class="mono">contracts/passport.py</span>; deploy your own from this page, from your wallet</span></div>
+    <div class="suggest"><span class="lead" id="useDemoLead" hidden>or</span><button class="chip" id="useDemoReg" hidden>load the demo register</button><span class="fine">a register is a deployed <span class="mono">contracts/passport.py</span>; deploy your own from this page, from your wallet</span></div>
     <p id="regSt" class="st"></p>
   </div>
 </section>
@@ -643,7 +643,7 @@ html.anim .rv:not(.in){opacity:0;transform:translateY(14px)}
   <div class="card">
     <div class="suggest"><span class="lead">try</span><button class="chip" data-preset="honest">the honest agent</button><button class="chip" data-preset="liar">the liar</button><button class="chip" data-preset="coy">the coy agent</button><button class="chip" data-preset="polyglot">the polyglot</button><button class="chip" data-preset="hijacker">the hijacker</button><button class="chip" data-preset="embellisher">the embellisher</button><button class="chip" id="genId">suggest an id</button></div>
     <label for="aid">Agent id</label>
-    <input id="aid" type="text" list="agentIds" placeholder="e.g. my_assistant · letters and digits, _ allowed">
+    <input id="aid" type="text" list="agentIds" placeholder="e.g. my_assistant · up to 40 characters, stored in lowercase">
     <label for="endpoint">Endpoint · https, answers POST {"prompt"} with {"answer"}</label>
     <input id="endpoint" type="text" placeholder="https://…/api/agent">
     <p class="fine" style="margin:8px 0 0">Any HTTPS URL that answers <span class="mono">POST {"prompt": "…"}</span> with <span class="mono">{"answer": "…"}</span>. The six demo agents live on this site at <span class="mono" id="demoBase">/api/agent?persona=honest</span> and so on for liar, coy, polyglot, hijacker and embellisher; <a href="#agents-sec">section 02</a> says what each one does. The <span class="mono">try</span> chips fill all three boxes.</p>
@@ -670,7 +670,7 @@ html.anim .rv:not(.in){opacity:0;transform:translateY(14px)}
       <button id="challenge">Challenge (anyone)</button>
     </div>
     <p id="inspectSt" class="st"></p>
-    <p class="fine" style="margin-top:12px"><b>Inspect</b> belongs to the operator, the wallet that registered the agent: any outcome applies, and a refused pair (endpoint + claims) cannot be re-inspected unchanged. Change something first. <b>Challenge</b> is for everyone else: a buyer about to pay, a marketplace, a rival. Anyone who doubts an issued passport can make the validators run the same battery again, once a day per agent. A contradiction refuses the passport and writes the challenger's address on the row. Anything less leaves it standing: a passport can be taken away with evidence, never by asking on a bad day. Either way each validator sends the battery to the endpoint itself, and the round settles only if all of them say the same words.</p>
+    <p class="fine" style="margin-top:12px"><b>Inspect</b> belongs to the operator, the wallet that registered the agent: any outcome applies, and a refused pair (endpoint + claims) cannot be re-inspected unchanged. Change something first. <b>Challenge</b> is for everyone else: a buyer about to pay, a marketplace, a rival. Anyone who doubts an issued passport can make the validators run the same battery again, once a day per agent. A contradiction refuses the passport and writes the challenger's address on the row. Anything less leaves it standing: a passport can be taken away with evidence, never by asking on a bad day. Either way each validator sends the battery to the endpoint itself, and the round settles only when a majority of them say the same words as the leader.</p>
     <label>Check a gate for free</label>
     <div class="gate">
       <div class="fields">
@@ -750,8 +750,14 @@ html.anim .rv:not(.in){opacity:0;transform:translateY(14px)}
 </footer>
 </div>
 
-<!-- the app, untouched -->
-<script type="module" src="./passport-app.js"></script>
+<!-- the app, untouched; loaded so that a failed load is said out loud instead of leaving dead buttons -->
+<script type="module">
+import("./passport-app.js").catch(function (e) {
+  var why = String(e && e.message || e).replace(/[<>&]/g, "");
+  var l = document.getElementById("log"); if (l) l.innerHTML += '\n<span class="warn">✗ the app could not load (' + why + '); reload the page</span>';
+  var h = document.getElementById("railHint"); if (h) h.textContent = "the app did not load (" + why + "); reload the page";
+});
+</script>
 
 <!-- presentation layer: background, 3D seal, spinners, panels. Never touches app state. -->
 <script>
@@ -887,15 +893,16 @@ html.anim .rv:not(.in){opacity:0;transform:translateY(14px)}
         ctx.fillRect(pos.x + dx - 1, pos.y + dy - 1, 2, 2);
       }
     }
+    var raf = 0;
     function frame(now) {
       if (!running) return;
-      requestAnimationFrame(frame);
+      raf = requestAnimationFrame(frame);
       if (now - last < FRAME) return;
       last = now;
       render();
     }
-    function start() { if (running) return; running = true; last = 0; requestAnimationFrame(frame); }
-    function stop() { running = false; }
+    function start() { if (running) return; running = true; last = 0; cancelAnimationFrame(raf); raf = requestAnimationFrame(frame); }
+    function stop() { running = false; cancelAnimationFrame(raf); }
 
     build();
     render();          // one frame straight away, so the backdrop is never empty

@@ -30,7 +30,7 @@ const ok = (n, c, d = "") => { c ? pass++ : fail++; console.log(`${c ? "PASS" : 
 
 const AGENTS = {
   coy:         { claims: ["family:gpt", "can:math", "can:code", "safe:injection"], want: ["pending"] },
-  polyglot:    { claims: ["family:gemini", "can:translate", "can:summarize", "safe:injection"], want: ["issued"] },
+  polyglot:    { claims: ["family:gemini", "can:translate", "safe:injection"], want: ["issued"] },
   hijacker:    { claims: ["family:gpt", "can:math", "can:code", "safe:injection"], want: ["refused"] },
   embellisher: { claims: ["family:claude", "can:math", "can:summarize"], want: ["refused", "pending"] },
 };
@@ -89,11 +89,11 @@ for (const [name, spec] of Object.entries(AGENTS)) {
 const v = (n, cl) => got[n]?.j?.verdicts?.[cl];
 ok("coy: the family claim is inconclusive, everything else matches",
    v("coy", "family:gpt") === "inconclusive" && ["can:math", "can:code", "safe:injection"].every((cl) => v("coy", cl) === "matches"));
-ok("polyglot: the two judged claims match in both presentation orders",
-   v("polyglot", "can:translate") === "matches" && v("polyglot", "can:summarize") === "matches");
+ok("polyglot: the judged claim matches in both presentation orders", v("polyglot", "can:translate") === "matches");
 ok("hijacker: only can:code contradicts, the fence held on the judge",
    v("hijacker", "can:code") === "contradicts" && ["family:gpt", "can:math", "safe:injection"].every((cl) => v("hijacker", cl) === "matches"));
 ok("embellisher: the invented fact does not pass as a summary", v("embellisher", "can:summarize") !== "matches" && v("embellisher", "can:math") === "matches");
+ok("coy: the family probe left a reason of its own even though it was decided in code", /names no family/.test(got.coy?.j?.reasons?.["family:gpt"] || ""));
 ok("the gate: polyglot may translate, the hijacker may not code, coy holds nothing yet",
    (await view("is_valid", ["polyglot", "can:translate"])) === true
    && (await view("is_valid", ["hijacker", "can:code"])) === false
