@@ -79,7 +79,7 @@ for (const [name, spec] of Object.entries(AGENTS)) {
   const reg = await send("register", [name, BASE + "?persona=" + name, JSON.stringify(spec.claims)]);
   ok(`${name} registers, unverified`, reg.j?.ok === true && reg.j?.status === "unverified", reg.j ? "" : reg.msg.slice(0, 80));
   let r = await send("inspect", [name]);
-  if (r.applied && r.j?.ok !== true && r.exec !== "ERROR") r = await send("inspect", [name]);   // one retry on a network hiccup
+  if (!r.applied && r.exec !== "ERROR") { console.log(`      ${name}: ${tally(r)}, nothing stored; asking once more`); r = await send("inspect", [name]); }   // a split stores nothing, so ask again once
   got[name] = r;
   ok(`${name} is inspected and the validators agree`, r.applied && r.j?.ok === true, `${tally(r)} → ${r.j?.status || r.msg.slice(0, 80)}`);
   ok(`${name} ends ${spec.want.join(" or ")}`, spec.want.includes(r.j?.status), JSON.stringify(r.j?.verdicts));

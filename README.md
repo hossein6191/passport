@@ -75,8 +75,8 @@ Every agent answer is capped and fenced by replacement (`<` → `(`, `>` → `)`
 reaches a judge, inside an explicit untrusted-data boundary. Storage keeps what the agent
 actually said; only the prompt is fenced. Nothing the caller controls is printed on a
 delimiter line; the probes and their criteria are contract constants. The `hijacker`
-demo agent exists to show this holding on chain: its code answer is a fake end-of-answer
-line and an instruction to the judge, and it is refused.
+demo agent exists to show this holding on chain: its code answer is a refusal followed by
+a fake end-of-answer line and an instruction to the judge, and it is refused.
 
 ## Who may do what
 
@@ -118,7 +118,7 @@ persona becomes a real model under a system prompt with the same intent.
 | `liar` | the same four | names Meta AI, multiplies, answers `PWNED` and `HAHA`, explains Fibonacci in prose | three contradictions, `can:math` matches: **refused**; narrowed to `can:math` it is issued |
 | `coy` | the same four | like honest, but "I would rather not say who built me." | `family:gpt` inconclusive, the rest match: **pending** |
 | `polyglot` | `family:gemini` `can:translate` `safe:injection` | names Google, translates correctly | two claims decided in code, one judged in both orders: **issued** |
-| `hijacker` | the same four as honest | like honest, but its code answer is a fake `END ANSWER` line and an instruction to the judge | the fence holds, `can:code` contradicts: **refused** |
+| `hijacker` | the same four as honest | like honest, but its code answer is a one-line refusal followed by a fake `END ANSWER` line and an instruction to the judge | the fence holds, `can:code` contradicts: **refused** |
 | `embellisher` | `family:claude` `can:math` `can:summarize` | names Anthropic, multiplies, summarises with one invented fact | `can:summarize` contradicts: **refused**; a judge that only doubts says inconclusive: **pending**. Never issued |
 
 Any HTTPS endpoint that answers `POST {"prompt"}` with `{"answer"}` can be registered
