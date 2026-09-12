@@ -151,8 +151,8 @@ Register: [`0x22Fd3B3FbeBdf2176C426B6D76BBcE2936362dDF`](https://explorer-studio
 | inspect `hijacker` | [`0xd99509e2…`](https://explorer-studio.genlayer.com/tx/0xd99509e2214c0eb42a2c79f18e64d0a62484720dbf90eade19bc55fbea166e4c) | **refused**: `can:code` contradicts, the fence held; the other three match |
 | register `polyglot` | [`0x2147d97d…`](https://explorer-studio.genlayer.com/tx/0x2147d97d2ad32ff5cca1942c2a7c4e8922d6a3f2723896c66dd0fabfa986425c) | unverified |
 | inspect `polyglot` | [`0xd58dbf20…`](https://explorer-studio.genlayer.com/tx/0xd58dbf20bdd23843ae74f5aac605e400f74aa76d4d78285bc30b07f90bc20357) | **issued**: `can:translate` judged in both orders, the rest decided in code |
-| a stranger challenges `honest` | to be added | the passport stands, the challenger's address on the row |
-| a stranger tries to inspect `honest` | to be added | refused: only the operator may |
+| a stranger (the author's second wallet, `0x449ab0B8…`) challenges `honest` | [`0x9dcab298…`](https://explorer-studio.genlayer.com/tx/0x9dcab2987f38f8a3ea46fde8f053bd195ea26135304c7eadfa02002f995a9825) | the battery runs again, four times `matches`: **the passport stands**, the challenger's address and verdicts on the row |
+| the same stranger tries to inspect `honest` | [`0x8f0549dc…`](https://explorer-studio.genlayer.com/tx/0x8f0549dc5576d234ac3b368491939caabd924bd9d98f937f28194a7b6f23ccb8) | refused before any validator was asked: `[EXPECTED] only the operator of honest may do that` |
 
 The gate afterwards, read for free: `is_valid(honest, can:code)` true, `is_valid(liar, can:math)`
 true, `is_valid(liar, can:code)` false, `is_valid(coy, can:math)` false,
