@@ -79,6 +79,12 @@ async function real(persona, prompt) {
 
 export default async function handler(req, res) {
   res.setHeader("Content-Type", "application/json");
+  // any page may ask an agent from the browser (the owner's signing page runs on
+  // localhost); validators never need this, browsers do
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+  if (req.method === "OPTIONS") return res.status(204).end();
   const url = new URL(req.url, "https://x");
   const wanted = url.searchParams.get("persona") || "honest";
   if (req.method !== "POST") {
