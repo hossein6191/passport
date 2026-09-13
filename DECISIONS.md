@@ -13,7 +13,8 @@
 User action → evidence → nondet call → equivalence → state → settlement:
 `inspect(agent)` → each validator POSTs the battery to the endpoint → keyword probes decided in code, judged
 probes asked in two presentation orders → validators compare the verdict word per claim, exactly → status
-issued / refused / pending → `Escrow.release()` reads `is_valid` and pays or refunds.
+issued / refused / pending → `Escrow.release()` reads `is_valid` and the row under the name, pays the
+operator the buyer bound to when both hold, and refunds otherwise.
 
 ## Why the answer is three words
 
@@ -60,8 +61,9 @@ endpoint, and that is a cost a stranger should not be able to impose in a loop.
 
 `Escrow.release` was buyer-only. Walk the operator's journey to the end and it dead-ends:
 the work is done, the passport is valid, and the buyer simply never releases. Now the
-buyer may settle at any time, and the operator may settle once the job is seven days
-old, under exactly the same rule. The passport decides who is paid, never the caller.
+buyer may settle at any time, and the operator may settle once the buyer's first funding is
+seven days old, under exactly the same rule. The passport and the binding decide who is
+paid, never the caller.
 The deadline is counted on the message clock, and a missing clock never opens the
 operator's path early.
 

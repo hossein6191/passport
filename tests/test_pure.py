@@ -365,12 +365,72 @@ class TestEscrow:
         assert not es._covers(True, op, "https://other.example/agent", op, ep)                 # the endpoint changed
         assert not es._covers(True, "", "", op, ep)                           # an empty row
 
-    def test_release_pays_the_bound_operator_never_the_row(self):
-        """Static: the payee is the address the buyer named, not whatever the row says."""
-        src = pathlib.Path(es.__file__).read_text(encoding="utf-8")
-        body = src[src.index("def release(self)"):src.index("def would_pay(self)")]
-        assert "payee = self.operator" in body
-        assert 'Address(str(holder["operator"]))' not in body and "row_operator" not in body.split("holder[\"covers\"]")[-1]
+    # ---- a small world for release(): a register that answers what we say, a payee that records
+    class _A(str):
+        @property
+        def as_hex(self): return str(self)
+
+    def _world(self, monkeypatch, sender, valid, row, raising=False, now="2026-09-13T00:00:00Z"):
+        transfers = []
+        class Payee:
+            def __init__(self, who): self.who = who
+            def emit_transfer(self, value): transfers.append((str(self.who), int(value)))
+        class View:
+            def is_valid(self, a, c):
+                if raising: raise RuntimeError("Contract not found")
+                return valid
+            def passport(self, a):
+                if raising: raise RuntimeError("Contract not found")
+                return json.dumps(row)
+        class Reg:
+            def view(self): return View()
+        gl = types.SimpleNamespace(message=types.SimpleNamespace(sender_address=sender, value=0),
+                                   message_raw={"datetime": now}, get_contract_at=lambda addr: Reg(), vm=es.gl.vm)
+        monkeypatch.setattr(es, "gl", gl); monkeypatch.setattr(es, "_Payee", Payee); monkeypatch.setattr(es, "Address", self._A)
+        return gl, transfers
+
+    def _job(self, monkeypatch, gl, buyer, op, ep, pool=5):
+        gl.message.sender_address = buyer
+        e = es.Escrow("0x" + "1" * 40, "acme", "can:code", op, ep)
+        gl.message.value = pool; e.fund(); gl.message.value = 0
+        return e
+
+    def test_release_pays_the_bound_operator_never_the_row(self, monkeypatch):
+        """The payee is the address the buyer named, and only when the row is still that."""
+        buyer, op, ep = self._A("0xBuyer"), "0xAbC0000000000000000000000000000000000001", "https://acme.example/agent"
+        cases = [
+            ("the row is the one the buyer bound to", True, {"operator": op, "endpoint": ep, "status": "issued", "issued_at": "2026-09-01T00:00:00Z"}, op, "operator"),
+            ("the row's address differs only in case", True, {"operator": op.lower(), "endpoint": ep, "status": "issued", "issued_at": "2026-09-01T00:00:00Z"}, op, "operator"),
+            ("a squatter holds the name", True, {"operator": "0xAbC0000000000000000000000000000000000002", "endpoint": ep, "status": "issued", "issued_at": "2026-09-01T00:00:00Z"}, "0xBuyer", "buyer"),
+            ("the endpoint changed", True, {"operator": op, "endpoint": "https://other.example/agent", "status": "issued", "issued_at": "2026-09-01T00:00:00Z"}, "0xBuyer", "buyer"),
+            ("no passport", False, {"operator": op, "endpoint": ep, "status": "refused"}, "0xBuyer", "buyer"),
+            ("no such name", False, {"error": "no agent named acme"}, "0xBuyer", "buyer"),
+            ("the passport expired on the escrow's own clock", True, {"operator": op, "endpoint": ep, "status": "issued", "issued_at": "2026-07-01T00:00:00Z"}, "0xBuyer", "buyer"),
+        ]
+        for why, valid, row, want_to, want_paid in cases:
+            gl, transfers = self._world(monkeypatch, buyer, valid, row)
+            e = self._job(monkeypatch, gl, buyer, op, ep)
+            out = json.loads(e.release())
+            assert transfers[-1] == (want_to, 5), why
+            assert out["paid"] == want_paid and out["to"] == want_to and e.settled and int(e.pool) == 0, why
+
+    def test_an_unreadable_register_refunds_instead_of_locking_the_job(self, monkeypatch):
+        buyer, op, ep = self._A("0xBuyer"), "0xAbC0000000000000000000000000000000000001", "https://acme.example/agent"
+        gl, transfers = self._world(monkeypatch, buyer, True, {}, raising=True)
+        e = self._job(monkeypatch, gl, buyer, op, ep)
+        out = json.loads(e.release())
+        assert transfers[-1] == ("0xBuyer", 5) and out["paid"] == "buyer" and out["passport"] == "unreadable"
+
+    def test_the_operators_clock_starts_with_the_buyers_money(self, monkeypatch):
+        """A wei from anybody else does not pre-age the job."""
+        buyer, op, ep = self._A("0xBuyer"), "0xAbC0000000000000000000000000000000000001", "https://acme.example/agent"
+        gl, transfers = self._world(monkeypatch, buyer, True, {})
+        gl.message.sender_address = buyer
+        e = es.Escrow("0x" + "1" * 40, "acme", "can:code", op, ep)
+        gl.message.sender_address = self._A(op); gl.message.value = 1; e.fund()
+        assert e.funded_at == "" and int(e.pool) == 1
+        gl.message.sender_address = buyer; gl.message.value = 4; e.fund()
+        assert e.funded_at == "2026-09-13T00:00:00Z" and int(e.pool) == 5
 
     def test_the_escrow_calendar_is_the_register_calendar(self):
         """Rule 20: anything copied is compared, function by function."""
@@ -381,7 +441,7 @@ class TestEscrow:
                 if isinstance(node, _ast.FunctionDef) and node.name == name:
                     return _ast.dump(node)
             raise AssertionError(name + " not found")
-        for fn in ("_instant_seconds", "_days_between", "_now"):
+        for fn in ("_instant_seconds", "_days_between", "_now", "_expired"):
             assert body(pp, fn) == body(es, fn), fn
 
 

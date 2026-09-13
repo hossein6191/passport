@@ -23,11 +23,11 @@ Live at https://passport-two-taupe.vercel.app.
 | path | what |
 |---|---|
 | `contracts/passport.py` | the register: claims, battery, inspection, verdicts, passports, `is_valid` |
-| `contracts/fixtures/escrow.py` | the consequence: a buyer-funded job that can only pay a passport-holder |
+| `contracts/fixtures/escrow.py` | the consequence: a buyer-funded job that pays only the operator the buyer bound to, and only while the passport covers the claim |
 | `api/agent.js` | six demo agents behind one Vercel function, `?persona=honest`, `liar`, `coy`, `polyglot`, `hijacker`, `embellisher` |
 | `index.html`, `passport-app.js` | the registry page: register, inspect, read passports, check the gate |
-| `tests/test_pure.py` | 36 tests with a GenLayer stub, including static checks on the source |
-| `tools/mutate.py` → `tests/MUTATIONS.md` | 26 defences removed one at a time, each killed by a named test |
+| `tests/test_pure.py` | 38 tests with a GenLayer stub, including static checks on the source |
+| `tools/mutate.py` → `tests/MUTATIONS.md` | 30 defences removed one at a time, each killed by a named test |
 | `tools/snapshot.mjs` → `data/snapshot.json` | a labelled copy of the demo register for the minute Studio refuses to read it |
 | `tests/on_chain/smoke.mjs`, `personas.mjs`, `escrow.mjs` | the same story against Studio, with a throwaway account |
 | `DECISIONS.md` | the boundary, and the decisions that are not obvious from the code |
@@ -104,9 +104,10 @@ register `is_valid(agent, claim)`, a synchronous view with no model and no conse
 reads the row: the named operator is paid only if the answer is yes and the row still
 carries that operator and that endpoint. Otherwise the buyer is refunded. There is no path
 through it that pays an agent without a passport for the job, and none that pays whoever
-registered a name first. The buyer may settle at any time; once the job is seven days old
-the operator may settle too, under the same rule, so a buyer cannot sit on a finished job
-forever.
+registered a name first. The buyer may settle at any time; seven days after the buyer
+first funded, the operator may settle too, under the same rule, so a buyer cannot sit on a
+finished job forever. A register that cannot be read refunds the buyer rather than locking
+the job, and expiry is checked on the escrow's own clock as well as the register's.
 
 **A name is a handle, not authority.** `register` is first come first served, and a row
 is a wallet-signed assertion about an endpoint. A consumer that moves value must know the
@@ -174,9 +175,9 @@ does for a minute at a time.
 ## Running it
 
 ```bash
-pip install -r requirements-dev.txt && python -m pytest -q tests/    # 36 pure tests, no network, under a second
+pip install -r requirements-dev.txt && python -m pytest -q tests/    # 38 pure tests, no network, under a second
 npm ci                                        # genlayer-js 1.1.8 and viem 2.56.3, from the lockfile
-python tools/mutate.py                        # 26 mutants, all must die, writes tests/MUTATIONS.md
+python tools/mutate.py                        # 30 mutants, all must die, writes tests/MUTATIONS.md
 genvm-lint check contracts/passport.py
 node tools/serve-agents.mjs                   # the site and the six agents on http://localhost:8797
 HONEST_URL=… LIAR_URL=… node tests/on_chain/smoke.mjs      # Studio, throwaway account, 22 checks
@@ -187,12 +188,15 @@ PASSPORT=0x… ISSUED=honest REFUSED=hijacker CLAIM=can:code OPERATOR_KEY=0x… 
 The on-chain tests need `genlayer-js` and `viem` on the Node path. On 8 September 2026 the smoke
 test passed 22/22 against Studio: every inspection and challenge settling 3 agree,
 0 disagree; a stranger's inspection refused, a stranger's challenge standing, a second
-challenge the same day refused. The escrow test passed 12/12: 12 GEN reached the operator
-of a passport-holder, 7 GEN went back to the buyer of a job the passport did not cover, and
-the operator could not settle a job younger than seven days. On 12 September the personas test
+challenge the same day refused. The same day the earlier, name-bound version of the escrow
+passed 12/12 (12 GEN to the operator of a passport-holder, 7 GEN back to the buyer of a job
+the passport did not cover, the operator unable to settle a job younger than seven days). On 12 September the personas test
 passed 22/22: coy pending with "the answer names no family" on the record, polyglot issued on a
 judged probe, the hijacker refused with the fence holding, the embellisher refused for the invented
-fact; every round 3 agree, 0 or 1 disagree.
+fact; every round 3 agree, 0 or 1 disagree. On 13 September the bound escrow passed 16/16 against
+the register above: 12 GEN reached the operator the buyer named; a job for the refused agent, a job
+bound to a stranger's address under the honest agent's name, and a job bound to another endpoint all
+paid nobody but the buyer.
 
 ## Rules this was built under
 

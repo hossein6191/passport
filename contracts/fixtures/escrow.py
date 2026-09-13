@@ -26,6 +26,7 @@ import typing
 from genlayer import *
 
 SETTLE_AFTER_DAYS = 7           # after this, the operator may settle too; the rule of payment is the same
+VALID_DAYS = 30                 # the register's own figure, copied so expiry is checked on this contract's clock too
 
 
 def _now() -> str:
@@ -81,8 +82,18 @@ def _days_between(earlier: str, later: str) -> typing.Optional[int]:
     return (b - a) // 86400
 
 
+def _expired(issued_at: str, now: str) -> bool:
+    if not issued_at or not now:
+        return False
+    days = _days_between(issued_at, now)
+    if days is None:
+        return False            # an unreadable clock is not a verdict
+    return days < 0 or days >= VALID_DAYS
+
+
 def _may_settle(caller_is_buyer: bool, caller_is_operator: bool, funded_at: str, now: str) -> bool:
-    """The buyer may settle at any time; the operator once the job is SETTLE_AFTER_DAYS old.
+    """The buyer may settle at any time; the operator once the job is SETTLE_AFTER_DAYS old,
+    counted from the buyer's first funding.
 
     A missing clock never opens the operator's path early: no clock, no deadline.
     """
@@ -122,7 +133,7 @@ class Escrow(gl.Contract):
     pool: u256
     settled: bool
     outcome_json: str
-    funded_at: str          # message clock of the first funding; the operator's deadline counts from here
+    funded_at: str          # message clock of the buyer's first funding; the operator's deadline counts from here
     operator: Address       # the operator the buyer is buying from; the only address this job can pay besides the buyer
     endpoint: str           # the endpoint the buyer is buying from; the row must still carry it
 
@@ -150,17 +161,29 @@ class Escrow(gl.Contract):
         if value == u256(0):
             return json.dumps({"ok": False, "reason": "send an amount greater than zero"})
         self.pool = self.pool + value
-        if not self.funded_at:
+        # the operator's deadline counts from the buyer's money, so nobody can pre-age a job with a wei of their own
+        if not self.funded_at and gl.message.sender_address == self.buyer:
             self.funded_at = _now()
         return json.dumps({"ok": True, "pool": str(int(self.pool))})
 
     def _holder(self) -> dict:
-        register = gl.get_contract_at(self.register)
-        valid = bool(register.view().is_valid(str(self.agent_id), str(self.claim_id)))
-        record = json.loads(str(register.view().passport(str(self.agent_id))))
+        """What the register says about the job, read on this contract's own clock.
+
+        A register that cannot be read (a wrong address, a bad minute) is treated
+        as a passport that does not cover the job: the buyer is refunded, never
+        locked out. Expiry is checked here as well as in the register, so it
+        does not depend on what clock the nested call happens to see.
+        """
+        try:
+            register = gl.get_contract_at(self.register)
+            valid = bool(register.view().is_valid(str(self.agent_id), str(self.claim_id)))
+            record = json.loads(str(register.view().passport(str(self.agent_id))))
+        except Exception:
+            return {"valid": False, "covers": False, "status": "unreadable", "row_operator": "", "row_endpoint": ""}
         row_operator = str(record.get("operator") or "")
         row_endpoint = str(record.get("endpoint") or "")
-        covers = _covers(valid, row_operator, row_endpoint, self.operator.as_hex, str(self.endpoint))
+        alive = valid and not _expired(str(record.get("issued_at") or ""), _now())
+        covers = _covers(alive, row_operator, row_endpoint, self.operator.as_hex, str(self.endpoint))
         return {"valid": valid, "covers": covers, "status": record.get("status"),
                 "row_operator": row_operator, "row_endpoint": row_endpoint}
 

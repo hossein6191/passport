@@ -1,7 +1,8 @@
 """Mutate every defence and record which test killed each mutant.
 
 A passing count is a claim. This table is evidence: each row names a change
-that removes or inverts one defence in contracts/passport.py and the test
+that removes or inverts one defence in contracts/passport.py or
+contracts/fixtures/escrow.py and the test
 that failed because of it. If any mutant survives, no table is written and
 the exit code is 1: a defence with no test that can fail is a defence that
 can be deleted by accident.
@@ -79,6 +80,15 @@ MUTATIONS = [
     ("escrow: the row's operator is paid instead of the bound one",
      '        if holder["covers"]:\n            payee = self.operator',
      '        if holder["covers"]:\n            payee = Address(str(holder["row_operator"]))', "escrow"),
+    ("escrow: an invalid passport is still paid",
+     '    if not valid:\n        return False\n', '', "escrow"),
+    ("escrow: an expired passport is still paid",
+     '        alive = valid and not _expired(str(record.get("issued_at") or ""), _now())', '        alive = valid', "escrow"),
+    ("escrow: anybody's wei starts the operator's clock",
+     '        if not self.funded_at and gl.message.sender_address == self.buyer:', '        if not self.funded_at:', "escrow"),
+    ("escrow: an unreadable register locks the job",
+     '        except Exception:\n            return {"valid": False, "covers": False, "status": "unreadable", "row_operator": "", "row_endpoint": ""}',
+     '        except Exception:\n            raise', "escrow"),
 ]
 
 

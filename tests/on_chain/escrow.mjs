@@ -76,7 +76,8 @@ const r3 = await send(E3, c, "release"); ok("release refunds the buyer, the pass
 ok("the stranger did not get a wei", (await balance(stranger.address)) === sBefore);
 ok("the buyer got the 3 GEN back (minus gas)", (await moved(buyer.address, b3)) - b3 > 2n * GEN);
 
-const E4 = await deployFor(ISSUED, operator, endpoint.replace("persona=", "persona=other-")); console.log("\nescrow for", ISSUED, "bound to the right operator but another endpoint, at", E4);
+const other = endpoint + (endpoint.includes("?") ? "&" : "?") + "other=1";
+const E4 = await deployFor(ISSUED, operator, other); console.log("\nescrow for", ISSUED, "bound to the right operator but another endpoint, at", E4);
 ok("would_pay says the buyer: the row no longer serves the endpoint the buyer bought from", (await view(E4, "would_pay")) === "buyer");
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
