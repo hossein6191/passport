@@ -353,6 +353,25 @@ class TestEscrow:
         assert not es._may_settle(False, True, "", "2026-09-08T00:00:00Z")                        # no clock, no deadline
         assert not es._may_settle(False, True, "2026-09-01T00:00:00Z", "")
 
+    def test_the_job_pays_only_the_row_the_buyer_bound_to(self):
+        """A name is a handle, first come first served. The job binds to the operator
+        address and the endpoint the buyer knew; a valid passport under the same name
+        held by somebody else, or served from another endpoint, pays the buyer back."""
+        op, ep = "0xAbC0000000000000000000000000000000000001", "https://acme.example/agent"
+        assert es._covers(True, op, ep, op, ep)
+        assert es._covers(True, op.lower(), ep, op, ep)                      # addresses compare case-insensitively
+        assert not es._covers(False, op, ep, op, ep)                          # no passport, no payment
+        assert not es._covers(True, "0xAbC0000000000000000000000000000000000002", ep, op, ep)   # a squatter holds the name
+        assert not es._covers(True, op, "https://other.example/agent", op, ep)                 # the endpoint changed
+        assert not es._covers(True, "", "", op, ep)                           # an empty row
+
+    def test_release_pays_the_bound_operator_never_the_row(self):
+        """Static: the payee is the address the buyer named, not whatever the row says."""
+        src = pathlib.Path(es.__file__).read_text(encoding="utf-8")
+        body = src[src.index("def release(self)"):src.index("def would_pay(self)")]
+        assert "payee = self.operator" in body
+        assert 'Address(str(holder["operator"]))' not in body and "row_operator" not in body.split("holder[\"covers\"]")[-1]
+
     def test_the_escrow_calendar_is_the_register_calendar(self):
         """Rule 20: anything copied is compared, function by function."""
         import ast as _ast

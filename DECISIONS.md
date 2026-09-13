@@ -7,7 +7,8 @@
   talks to the agent itself), the three-word verdicts, issue/refuse/pending, the refused-key guard, `is_valid`.
 - **External sources own:** the agent's answers. They are untrusted: fenced by replacement at the prompt
   boundary, never stored unfenced into a prompt, and never compared across validators. Only the verdicts are.
-- **Escrow fixture owns:** the consequence. Pays the operator only while `is_valid` says so; otherwise the buyer.
+- **Escrow fixture owns:** the consequence. Pays the operator the buyer named, only while `is_valid` says so
+  and the row still carries that operator and endpoint; otherwise the buyer.
 
 User action → evidence → nondet call → equivalence → state → settlement:
 `inspect(agent)` → each validator POSTs the battery to the endpoint → keyword probes decided in code, judged
@@ -63,6 +64,19 @@ buyer may settle at any time, and the operator may settle once the job is seven 
 old, under exactly the same rule. The passport decides who is paid, never the caller.
 The deadline is counted on the message clock, and a missing clock never opens the
 operator's path early.
+
+## A name is a handle, not authority
+
+`register` is first come first served: whoever sends the transaction first holds the
+name, and the row is that wallet's assertion about an endpoint. Nothing on chain can say
+who the "real" owner of a name is. So the register does not pretend to: a consumer that
+moves value binds to what it knows independently, the operator address and the endpoint,
+and the escrow refunds the buyer when the row under the name is not that. A squatter can
+hold a name and even earn a passport for their own endpoint; they cannot be paid for a
+job the buyer bound to somebody else. The next step, if a stronger binding is ever
+needed, is verifiable rather than asserted: validators fetch a well-known file on the
+endpoint's host that names the operator address, under consensus, and the row is marked
+bound to that host.
 
 ## Why a refused pair cannot be asked again
 

@@ -26,8 +26,8 @@ Live at https://passport-two-taupe.vercel.app.
 | `contracts/fixtures/escrow.py` | the consequence: a buyer-funded job that can only pay a passport-holder |
 | `api/agent.js` | six demo agents behind one Vercel function, `?persona=honest`, `liar`, `coy`, `polyglot`, `hijacker`, `embellisher` |
 | `index.html`, `passport-app.js` | the registry page: register, inspect, read passports, check the gate |
-| `tests/test_pure.py` | 34 tests with a GenLayer stub, including static checks on the source |
-| `tools/mutate.py` → `tests/MUTATIONS.md` | 23 defences removed one at a time, each killed by a named test |
+| `tests/test_pure.py` | 36 tests with a GenLayer stub, including static checks on the source |
+| `tools/mutate.py` → `tests/MUTATIONS.md` | 26 defences removed one at a time, each killed by a named test |
 | `tools/snapshot.mjs` → `data/snapshot.json` | a labelled copy of the demo register for the minute Studio refuses to read it |
 | `tests/on_chain/smoke.mjs`, `personas.mjs`, `escrow.mjs` | the same story against Studio, with a throwaway account |
 | `DECISIONS.md` | the boundary, and the decisions that are not obvious from the code |
@@ -98,12 +98,21 @@ operator, who last inspected it, and who last challenged it.
 
 ## The consequence
 
-`contracts/fixtures/escrow.py` is a buyer-funded job for one agent and one claim. On
-release it asks the register `is_valid(agent, claim)`, a synchronous view with no model
-and no consensus, and pays the operator if the answer is yes, the buyer if it is no. There
-is no path through it that pays an agent without a passport for the job. The buyer may
-settle at any time; once the job is seven days old the operator may settle too, under the
-same rule, so a buyer cannot sit on a finished job forever.
+`contracts/fixtures/escrow.py` is a buyer-funded job for one agent and one claim, bound
+to the operator address and the endpoint the buyer is buying from. On release it asks the
+register `is_valid(agent, claim)`, a synchronous view with no model and no consensus, and
+reads the row: the named operator is paid only if the answer is yes and the row still
+carries that operator and that endpoint. Otherwise the buyer is refunded. There is no path
+through it that pays an agent without a passport for the job, and none that pays whoever
+registered a name first. The buyer may settle at any time; once the job is seven days old
+the operator may settle too, under the same rule, so a buyer cannot sit on a finished job
+forever.
+
+**A name is a handle, not authority.** `register` is first come first served, and a row
+is a wallet-signed assertion about an endpoint. A consumer that moves value must know the
+operator address independently and bind to it, as the escrow does; the register gives it
+`passport(agent)` to compare against, and never decides for it who the authoritative
+operator of a name is.
 
 ## The demo agents
 
@@ -165,14 +174,14 @@ does for a minute at a time.
 ## Running it
 
 ```bash
-pip install -r requirements-dev.txt && python -m pytest -q tests/    # 34 pure tests, no network, under a second
+pip install -r requirements-dev.txt && python -m pytest -q tests/    # 36 pure tests, no network, under a second
 npm ci                                        # genlayer-js 1.1.8 and viem 2.56.3, from the lockfile
-python tools/mutate.py                        # 23 mutants, all must die, writes tests/MUTATIONS.md
+python tools/mutate.py                        # 26 mutants, all must die, writes tests/MUTATIONS.md
 genvm-lint check contracts/passport.py
 node tools/serve-agents.mjs                   # the site and the six agents on http://localhost:8797
 HONEST_URL=… LIAR_URL=… node tests/on_chain/smoke.mjs      # Studio, throwaway account, 22 checks
 AGENT_BASE=https://…/api/agent node tests/on_chain/personas.mjs   # the four newer agents, 22 checks
-PASSPORT=0x… ISSUED=honest REFUSED=liar CLAIM=can:code OPERATOR_KEY=0x… node tests/on_chain/escrow.mjs
+PASSPORT=0x… ISSUED=honest REFUSED=hijacker CLAIM=can:code OPERATOR_KEY=0x… node tests/on_chain/escrow.mjs
 ```
 
 The on-chain tests need `genlayer-js` and `viem` on the Node path. On 8 September 2026 the smoke

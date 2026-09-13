@@ -2,12 +2,21 @@
 
 """Escrow: money that can only reach an agent whose passport covers the job.
 
-A buyer funds a job for one agent and one claim. When the buyer releases,
-the escrow asks the Passport register, an ordinary synchronous view with no
+A buyer funds a job for one agent and one claim, and names the operator
+address and the endpoint it is buying from. When the job is settled, the
+escrow asks the Passport register, an ordinary synchronous view with no
 model and no consensus, whether that agent holds an issued passport covering
-that claim. If yes, the operator is paid. If the passport was refused,
-withdrawn or never issued, the buyer takes the money back instead. There is
-no path through this contract that pays an agent without a passport.
+that claim, and reads the row to check that it is still the row the buyer
+bound to: the same operator, the same endpoint. If everything holds, the
+named operator is paid. If the passport was refused, withdrawn or never
+issued, or the name now belongs to somebody else, or the endpoint changed,
+the buyer takes the money back instead. There is no path through this
+contract that pays an agent without a passport, and none that pays whoever
+happened to register a name first.
+
+A name on the register is a handle, first come first served; it carries no
+authority. Whoever pays must know the operator independently and say so
+here. The register never decides that for them.
 
 It is a fixture: small on purpose, and here to be read.
 """
@@ -85,6 +94,17 @@ def _may_settle(caller_is_buyer: bool, caller_is_operator: bool, funded_at: str,
     return days is not None and days >= SETTLE_AFTER_DAYS
 
 
+def _covers(valid: bool, row_operator: str, row_endpoint: str, operator: str, endpoint: str) -> bool:
+    """The job pays only when the passport is valid AND the row under the name is
+    the one the buyer bound to: the operator address and the endpoint the buyer
+    knew when funding. The name alone proves nothing; whoever registered it first
+    holds it, and that is a wallet's assertion, not authority.
+    """
+    if not valid:
+        return False
+    return str(row_operator).lower() == str(operator).lower() and str(row_endpoint).strip() == str(endpoint).strip()
+
+
 @gl.evm.contract_interface
 class _Payee:
     class View:
@@ -103,8 +123,10 @@ class Escrow(gl.Contract):
     settled: bool
     outcome_json: str
     funded_at: str          # message clock of the first funding; the operator's deadline counts from here
+    operator: Address       # the operator the buyer is buying from; the only address this job can pay besides the buyer
+    endpoint: str           # the endpoint the buyer is buying from; the row must still carry it
 
-    def __init__(self, register: str, agent_id: str, claim_id: str) -> None:
+    def __init__(self, register: str, agent_id: str, claim_id: str, operator: str, endpoint: str) -> None:
         self.register = Address(register)
         self.agent_id = agent_id.strip().lower()
         self.claim_id = claim_id.strip().lower()
@@ -113,6 +135,8 @@ class Escrow(gl.Contract):
         self.settled = False
         self.outcome_json = "{}"
         self.funded_at = ""
+        self.operator = Address(operator)
+        self.endpoint = endpoint.strip()
 
     @gl.public.write.payable
     def fund(self) -> str:
@@ -134,11 +158,16 @@ class Escrow(gl.Contract):
         register = gl.get_contract_at(self.register)
         valid = bool(register.view().is_valid(str(self.agent_id), str(self.claim_id)))
         record = json.loads(str(register.view().passport(str(self.agent_id))))
-        return {"valid": valid, "operator": record.get("operator"), "status": record.get("status")}
+        row_operator = str(record.get("operator") or "")
+        row_endpoint = str(record.get("endpoint") or "")
+        covers = _covers(valid, row_operator, row_endpoint, self.operator.as_hex, str(self.endpoint))
+        return {"valid": valid, "covers": covers, "status": record.get("status"),
+                "row_operator": row_operator, "row_endpoint": row_endpoint}
 
     @gl.public.write
     def release(self) -> str:
-        """Pay the operator if the passport covers the claim; otherwise refund the buyer.
+        """Pay the named operator if the passport covers the claim and the row is
+        the one the buyer bound to; otherwise refund the buyer.
 
         The buyer may settle at any time. The operator may settle once the job
         is SETTLE_AFTER_DAYS old, so a buyer cannot sit on a finished job
@@ -151,13 +180,13 @@ class Escrow(gl.Contract):
         holder = self._holder()
         sender = gl.message.sender_address
         is_buyer = sender == self.buyer
-        is_operator = bool(holder.get("operator")) and Address(str(holder["operator"])) == sender
+        is_operator = sender == self.operator
         if not _may_settle(is_buyer, is_operator, str(self.funded_at), _now()):
             raise gl.vm.UserError("[EXPECTED] only the buyer settles this job, or its operator once it is "
                                   + str(SETTLE_AFTER_DAYS) + " days old")
         amount = self.pool
-        if holder["valid"] and holder.get("operator"):
-            payee = Address(str(holder["operator"]))
+        if holder["covers"]:
+            payee = self.operator
             paid = "operator"
         else:
             payee = self.buyer
@@ -165,7 +194,8 @@ class Escrow(gl.Contract):
         _Payee(payee).emit_transfer(value=amount)
         self.pool = u256(0)
         self.settled = True
-        outcome = {"passport": str(holder.get("status")), "paid": paid, "to": payee.as_hex, "amount": str(int(amount)),
+        outcome = {"passport": str(holder.get("status")), "valid": bool(holder["valid"]), "bound": bool(holder["covers"]),
+                   "paid": paid, "to": payee.as_hex, "amount": str(int(amount)),
                    "settled_by": "buyer" if is_buyer else "operator"}
         self.outcome_json = json.dumps(outcome)
         return json.dumps({"ok": True, **outcome})
@@ -173,12 +203,13 @@ class Escrow(gl.Contract):
     @gl.public.view
     def would_pay(self) -> str:
         holder = self._holder()
-        return "operator" if holder["valid"] else "buyer"
+        return "operator" if holder["covers"] else "buyer"
 
     @gl.public.view
     def status(self) -> str:
         return json.dumps({
             "register": self.register.as_hex, "agent": str(self.agent_id), "claim": str(self.claim_id),
+            "operator": self.operator.as_hex, "endpoint": str(self.endpoint),
             "buyer": self.buyer.as_hex, "pool": str(int(self.pool)), "settled": bool(self.settled),
             "funded_at": str(self.funded_at), "settle_after_days": SETTLE_AFTER_DAYS,
             "operator_may_settle": _may_settle(False, True, str(self.funded_at), _now()),

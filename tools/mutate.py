@@ -70,6 +70,15 @@ MUTATIONS = [
      '    return days is not None and days >= SETTLE_AFTER_DAYS', '    return True', "escrow"),
     ("escrow: a stranger may settle",
      '    if not caller_is_operator:\n        return False\n', '', "escrow"),
+    ("escrow: a squatter holding the name is paid",
+     '    return str(row_operator).lower() == str(operator).lower() and str(row_endpoint).strip() == str(endpoint).strip()',
+     '    return str(row_endpoint).strip() == str(endpoint).strip()', "escrow"),
+    ("escrow: a changed endpoint is still paid",
+     '    return str(row_operator).lower() == str(operator).lower() and str(row_endpoint).strip() == str(endpoint).strip()',
+     '    return str(row_operator).lower() == str(operator).lower()', "escrow"),
+    ("escrow: the row's operator is paid instead of the bound one",
+     '        if holder["covers"]:\n            payee = self.operator',
+     '        if holder["covers"]:\n            payee = Address(str(holder["row_operator"]))', "escrow"),
 ]
 
 
