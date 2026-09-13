@@ -69,7 +69,8 @@ const HINTS = {
 };
 function paint() {
   const on = !!account;
-  $("who").textContent = account || "";
+  $("who").textContent = account ? account.slice(0, 6) + "…" + account.slice(-4) : "";
+  $("who").title = account || "";
   $("connect").textContent = on ? "Change wallet" : "Connect wallet";
   const step = !on ? 1 : !reg ? 2 : !progress.registered ? 3 : !progress.inspected ? 4 : 5;
   for (const li of document.querySelectorAll("#steps li")) {
