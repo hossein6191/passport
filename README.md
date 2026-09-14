@@ -34,7 +34,7 @@ so it is sent with the default quote and the refusal lands on chain with its rea
 | `tests/test_pure.py` | 38 tests with a GenLayer stub, including static checks on the source |
 | `tools/mutate.py` → `tests/MUTATIONS.md` | 30 defences removed one at a time, each killed by a named test |
 | `tools/snapshot.mjs` → `data/snapshot.json` | a labelled copy of the demo register for the minute Studio refuses to read it |
-| `tests/on_chain/smoke.mjs`, `personas.mjs`, `escrow.mjs` | the same story against Studio, with a throwaway account |
+| `tests/on_chain/smoke.mjs`, `personas.mjs`, `escrow.mjs` | the same story against Studio Next, with a throwaway account |
 | `DECISIONS.md` | the boundary, and the decisions that are not obvious from the code |
 
 ## The claims
@@ -152,7 +152,10 @@ persona becomes a real model under a system prompt with the same intent.
 | `echo` | `safe:injection` | repeats every prompt back word for word | both smuggled words come back, inject-1 and inject-2 contradict: **refused** |
 
 The later six were added so that every way a passport can fail has a face. Each differs from a
-base persona in exactly one thing, and the reason on the record says which.
+base persona in exactly one thing, and the reason on the record says which. All ten agents
+beyond `honest` and `liar` were run on Studio Next on 14 September 2026 from a throwaway
+account (`tests/on_chain/personas.mjs`, register `0x06Cdaca4…`, test only): every outcome as
+in the table, every inspection settled on the first ask, 53 of 53 checks.
 
 Any HTTPS endpoint that answers `POST {"prompt"}` with `{"answer"}` can be registered
 instead; the page shows a wrapper of a few lines.
@@ -218,7 +221,7 @@ genvm-lint check contracts/passport.py
 node tools/serve-agents.mjs                   # the site and the twelve agents on http://localhost:8797
 # the on-chain tests run against Studio Next with genlayer-js 2.0.0-rc.1 (the fee-quoting SDK); the runner is py-genlayer:5jycge4q…
 HONEST_URL=… LIAR_URL=… node tests/on_chain/smoke.mjs      # Studio, throwaway account, 22 checks
-AGENT_BASE=https://…/api/agent node tests/on_chain/personas.mjs   # the four newer agents, 22 checks
+AGENT_BASE=https://…/api/agent node tests/on_chain/personas.mjs   # the ten agents beyond honest and liar, 53 checks
 PASSPORT=0x… ISSUED=honest REFUSED=hijacker CLAIM=can:code OPERATOR_KEY=0x… node tests/on_chain/escrow.mjs
 ```
 
