@@ -80,6 +80,27 @@ const HINTS = {
   4: "In section 05 press Inspect on your agent. Every validator sends the battery to the agent itself; about a minute.",
   5: "Your passport is in section 06, one word per claim with the validators' reasons. Ask the gate in section 05: is_valid(agent, claim), free.",
 };
+/* A guide that follows the visitor: after every step it says where to go next, with a button
+   that takes them there. Hiding it hides it for the current step only; the next step brings it back. */
+const GUIDE = {
+  1: ["Press Connect wallet at the top right. Rabby or any wallet; it is asked to add GenLayer Studio Next, then press Get test GEN.", "top"],
+  2: ["Go to section 03 and press Load the demo register. One click, no signature.", "register-sec"],
+  3: ["Go to section 04, press one of the try chips, then Register. One signature.", "agent-sec"],
+  4: ["Go to section 05 and press Inspect. The validators send the battery to your agent; about a minute.", "inspect-sec"],
+  5: ["Your passport is in section 06, one word per claim. Then ask the gate in section 05: is_valid(agent, claim), free.", "passports"],
+};
+let guideStep = 0;
+function paintGuide(step) {
+  const g = $("guide"); if (!g || !GUIDE[step]) return;
+  const [text, go] = GUIDE[step];
+  $("guideStep").textContent = "Step " + step + " of 5";
+  $("guideText").textContent = text;
+  $("guideGo").onclick = () => { if (go === "top") window.scrollTo({ top: 0, behavior: "smooth" }); else goTo(go); };
+  let hiddenFor = null; try { hiddenFor = sessionStorage.getItem("passport_guide_hidden"); } catch (e) {}
+  g.hidden = String(step) === hiddenFor;
+  guideStep = step;
+}
+if ($("guideHide")) $("guideHide").onclick = () => { $("guide").hidden = true; try { sessionStorage.setItem("passport_guide_hidden", String(guideStep)); } catch (e) {} };
 function paint() {
   const on = !!account;
   $("who").textContent = account ? account.slice(0, 6) + "…" + account.slice(-4) : "";
@@ -91,6 +112,7 @@ function paint() {
     li.classList.toggle("done", n < step); li.classList.toggle("now", n === step);
   }
   if ($("railHint")) $("railHint").textContent = HINTS[step];
+  paintGuide(step);
   if ($("introStep2") && !DEMO_REGISTER) $("introStep2").textContent = "Paste a Passport register in section 03, or deploy your own from there. One signature.";
 }
 /* Every signing button asks for what it needs instead of sitting disabled:

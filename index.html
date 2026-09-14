@@ -386,6 +386,15 @@ footer .built{max-width:620px}
 
 /* ============================================================ the box at the door */
 .help{width:36px;height:36px;padding:0;border-radius:50%;display:grid;place-items:center;font-family:var(--mono);font-size:15px;font-weight:600}
+/* the guide: a small fixed box that says where to go next, after every step */
+.guide{position:fixed;right:18px;bottom:18px;z-index:40;max-width:min(340px,calc(100vw - 32px));padding:12px 14px 12px 16px;border:1px solid var(--line-2);border-radius:14px;background:rgba(10,10,22,.94);backdrop-filter:blur(8px);box-shadow:0 12px 40px rgba(0,0,0,.45);font-size:13.5px;line-height:1.45}
+.guide[hidden]{display:none}
+.guide .gs{display:block;font-family:var(--mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--ok);margin:0 22px 4px 0}
+.guide p{margin:0 0 10px;color:var(--ink-2)}
+.guide .go{padding:7px 12px;font-size:13px}
+.guide .x{position:absolute;top:6px;right:8px;width:26px;height:26px;padding:0;border:0;background:transparent;color:var(--ink-3);font-size:16px;line-height:1}
+.guide .x:hover{color:var(--ink);background:transparent}
+@media (max-width:600px){.guide{left:16px;right:16px;bottom:12px;max-width:none}}
 .intro{position:fixed;inset:0;z-index:150;display:grid;place-items:center;padding:20px;
   background:rgba(3,3,8,.74);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
 .intro[hidden]{display:none}
@@ -757,7 +766,7 @@ html.anim .rv:not(.in){opacity:0;transform:translateY(14px)}
 
 <!-- the app, untouched; loaded so that a failed load is said out loud instead of leaving dead buttons -->
 <script type="module">
-import("./passport-app.js?v=3").catch(function (e) {
+import("./passport-app.js?v=4").catch(function (e) {
   var why = String(e && e.message || e).replace(/[<>&]/g, "");
   var l = document.getElementById("log"); if (l) l.innerHTML += '\n<span class="warn">✗ the app could not load (' + why + '); reload the page</span>';
   var h = document.getElementById("railHint"); if (h) h.textContent = "the app did not load (" + why + "); reload the page";
@@ -1269,5 +1278,12 @@ if (stage && canvas && !matchMedia("(prefers-reduced-motion: reduce)").matches) 
   }
 }
 </script>
+<!-- the guide: after every step it says where to go next, and takes the visitor there -->
+<aside id="guide" class="guide" hidden aria-live="polite">
+  <button id="guideHide" class="x" aria-label="hide this guide" title="hide">×</button>
+  <span id="guideStep" class="gs"></span>
+  <p id="guideText"></p>
+  <div><button id="guideGo" class="go">Take me there</button></div>
+</aside>
 </body>
 </html>
