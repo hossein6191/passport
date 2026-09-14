@@ -332,5 +332,16 @@ for (const li of document.querySelectorAll("#steps li")) li.onclick = () => goTo
 paint();
 const saved = (() => { try { return localStorage.getItem("passport_register"); } catch (e) { return null; } })();
 if ($("useDemoReg") && DEMO_REGISTER) { $("useDemoReg").hidden = false; if ($("useDemoLead")) $("useDemoLead").hidden = false; $("useDemoReg").onclick = () => useRegister(DEMO_REGISTER); }
+/* A remembered register wins, unless it cannot be read on this network (the hackathon moved
+   from Studio to Studio Next, and a browser may still remember a Studio address); then the
+   demo register is loaded and the memory is corrected. */
 const first = saved || DEMO_REGISTER;
-if (first) { log("loading " + first + " …"); useRegister(first); }
+if (first) {
+  log("loading " + first + (saved ? "" : " (the demo register)") + " …");
+  useRegister(first).then((ok) => {
+    if (ok || !saved || !DEMO_REGISTER || saved.toLowerCase() === DEMO_REGISTER.toLowerCase()) return;
+    log("the remembered register did not answer on this network; loading the demo register instead", "warn");
+    try { localStorage.removeItem("passport_register"); } catch (e) {}
+    useRegister(DEMO_REGISTER);
+  });
+}
