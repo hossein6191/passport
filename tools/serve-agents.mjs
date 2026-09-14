@@ -1,19 +1,21 @@
-/* Serve the site and api/agent.js locally, the way Vercel would, so a tunnel
+/* Serve the site, api/agent.js and api/txs.js locally, the way Vercel would, so a tunnel
    can expose the agents for on-chain tests before the real deployment exists. */
 import { createServer } from "node:http";
 import { readFile } from "node:fs/promises";
 import { extname, join, normalize } from "node:path";
 const ROOT = new URL("..", import.meta.url).pathname;
 const mod = await import(new URL("../api/agent.js", import.meta.url));
+const txs = await import(new URL("../api/txs.js", import.meta.url));
 const PORT = Number(process.env.PORT || 8797);
 const TYPES = { ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8",
                 ".svg": "image/svg+xml", ".png": "image/png", ".json": "application/json", ".py": "text/plain; charset=utf-8", ".md": "text/plain; charset=utf-8" };
 createServer(async (req, res) => {
   const url = new URL(req.url, "http://x");
-  if (url.pathname === "/api/agent") {
+  if (url.pathname === "/api/agent" || url.pathname === "/api/txs") {
     let raw = ""; for await (const chunk of req) raw += chunk;
     const shim = { setHeader: (k, v) => res.setHeader(k, v), status(c) { res.statusCode = c; return shim; }, end: (s) => res.end(s) };
-    try { await mod.default({ method: req.method, url: req.url, body: raw }, shim); }
+    const fn = url.pathname === "/api/txs" ? txs.default : mod.default;
+    try { await fn({ method: req.method, url: req.url, body: raw }, shim); }
     catch (e) { res.statusCode = 500; res.end(JSON.stringify({ error: String(e.message || e) })); }
     return;
   }

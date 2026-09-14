@@ -34,7 +34,7 @@ so it is sent with the default quote and the refusal lands on chain with its rea
 | `tests/test_pure.py` | 38 tests with a GenLayer stub, including static checks on the source |
 | `tools/mutate.py` → `tests/MUTATIONS.md` | 30 defences removed one at a time, each killed by a named test |
 | `tools/snapshot.mjs` → `data/snapshot.json` | a labelled copy of the demo register for the minute Studio refuses to read it |
-| `data/evidence.json` | the transactions of the evidence table below, per agent; the page reads it to put an explorer link under each passport of the demo register (transactions a visitor signs are remembered in their own browser and shown the same way) |
+| `api/txs.js` | one function that lists a register's transactions from the RPC, decodes each call, and returns hash, sender, method, agent and outcome; the page uses it to put the explorer link of every transaction under the passport it touched |
 | `tests/on_chain/smoke.mjs`, `personas.mjs`, `escrow.mjs` | the same story against Studio Next, with a throwaway account |
 | `DECISIONS.md` | the boundary, and the decisions that are not obvious from the code |
 

@@ -810,7 +810,7 @@ html.anim .rv:not(.in){opacity:0;transform:translateY(14px)}
 
 <!-- the app, untouched; loaded so that a failed load is said out loud instead of leaving dead buttons -->
 <script type="module">
-import("./passport-app.js?v=6").catch(function (e) {
+import("./passport-app.js?v=7").catch(function (e) {
   var why = String(e && e.message || e).replace(/[<>&]/g, "");
   var l = document.getElementById("log"); if (l) l.innerHTML += '\n<span class="warn">✗ the app could not load (' + why + '); reload the page</span>';
   var h = document.getElementById("railHint"); if (h) h.textContent = "the app did not load (" + why + "); reload the page";

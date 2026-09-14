@@ -59,23 +59,50 @@ const link = (path, text) => `<a href="${EXPLORER}${path}" target="_blank" rel="
    says can be checked where it happened, not only in the log. */
 const txLink = (r) => (r?.tx ? " · " + link("/tx/" + r.tx, "tx " + r.tx.slice(0, 10) + "… on the explorer ↗") : "");
 const done = (el, text, r) => { el.innerHTML = esc(text) + txLink(r); };
-/* Under every passport in section 06: the explorer links of the transactions that made it. A
-   contract cannot know its own transaction hashes, so they come from two places: data/evidence.json
-   (the demo register's transactions, the same ones the README cites) and this browser's memory of
-   the transactions it signed itself, kept per register. */
-let EVIDENCE = null;
-fetch("./data/evidence.json?v=" + Date.now()).then((r) => (r.ok ? r.json() : null)).then((j) => { EVIDENCE = j; if (reg) renderAgents(); }).catch(() => {});
+/* Under every passport in section 06: the explorer link of every transaction that touched it. A
+   contract cannot know its own transaction hashes, so api/txs.js lists the register's transactions
+   from the network and decodes each call (method, agent, how it ended). This browser's own signed
+   transactions are also remembered per register, for the second before the list catches up. */
+const TXS = { register: "", byAgent: {} };
+let chainFresh = false;
+function labelOf(t, operator) {
+  const err = t.exec === "ERROR", why = t.error || "";
+  let what;
+  if (t.method === "register") what = err ? "registration refused" + (/one model family/.test(why) ? ", two families claimed" : /unknown claim/.test(why) ? ", unknown claim" : "") : "registered";
+  else if (t.method === "update") what = err ? "update refused" : "claims updated";
+  else if (t.method === "withdraw") what = err ? "withdrawal refused" : "withdrawn";
+  else if (t.method === "inspect") what = err ? "inspect refused" + (/only the operator/.test(why) ? ", not the operator" : /again/.test(why) ? ", unchanged since the refusal" : "") : "inspected, " + (t.result?.status || "");
+  else if (t.method === "challenge") what = err ? "challenge refused" + (/less than/.test(why) ? ", too soon" : /only an issued/.test(why) ? ", no issued passport" : "") : "challenged, " + (t.result?.outcome === "stands" ? "stands" : "refused");
+  else what = t.method;
+  if (operator && t.from && t.from.toLowerCase() !== String(operator).toLowerCase()) what += " by " + t.from.slice(0, 6) + "…" + t.from.slice(-4);
+  return what;
+}
+async function loadChainTxs() {
+  if (!reg) return;
+  const want = reg;
+  try {
+    const r = await fetch(location.origin + "/api/txs?register=" + want + (chainFresh ? "&fresh=1" : ""));
+    chainFresh = false;
+    if (!r.ok) return;
+    const j = await r.json();
+    if (want !== reg) return;
+    const byAgent = {};
+    for (const t of j.txs || []) { if (!t.agent) continue; (byAgent[t.agent] = byAgent[t.agent] || []).push(t); }
+    TXS.register = want.toLowerCase(); TXS.byAgent = byAgent;
+  } catch (e) {}
+}
 const MINE_KEY = "passport_txs";
 const mine = (() => { try { return JSON.parse(localStorage.getItem(MINE_KEY) || "{}") || {}; } catch (e) { return {}; } })();
 function remember(id, what, r) {
   if (!r?.tx || !reg) return;
+  chainFresh = true;
   const k = reg.toLowerCase(); mine[k] = mine[k] || {}; mine[k][id] = mine[k][id] || [];
   mine[k][id].push({ what, tx: r.tx });
   try { localStorage.setItem(MINE_KEY, JSON.stringify(mine)); } catch (e) {}
 }
-function txsOf(id) {
+function txsOf(id, operator) {
   const k = (reg || "").toLowerCase();
-  const known = EVIDENCE && String(EVIDENCE.register || "").toLowerCase() === k ? (EVIDENCE.agents || {})[id] || [] : [];
+  const known = TXS.register === k ? (TXS.byAgent[id] || []).map((t) => ({ what: labelOf(t, operator), tx: t.hash })) : [];
   const own = (mine[k] || {})[id] || [];
   const seen = new Set(); const out = [];
   for (const t of [...known, ...own]) { if (t?.tx && !seen.has(t.tx)) { seen.add(t.tx); out.push(t); } }
@@ -364,7 +391,7 @@ function agentCard(a) {
       ${a.inspections ? `<div class="mono muted">last inspected by ${esc(a.last_inspector)}</div>` : ""}
       ${a.challenges ? `<div class="mono muted">challenged ${a.challenges}× · last by ${esc(a.last_challenge?.by || "")} on ${esc(String(a.last_challenge?.at || "").slice(0, 10))} → <b>${esc(a.last_challenge?.outcome || "")}</b></div>` : ""}
       ${rows ? `<div class="verdicts">${rows}</div>` : '<p class="fine">not inspected yet</p>'}
-      <div class="mono muted explorer">${txsOf(a.agent).length ? "on the explorer: " + txsOf(a.agent).map((t) => link("/tx/" + t.tx, t.what + " ↗")).join(" · ")
+      <div class="mono muted explorer">${txsOf(a.agent, a.operator).length ? "on the explorer: " + txsOf(a.agent, a.operator).map((t) => link("/tx/" + t.tx, t.what + " ↗")).join(" · ")
                                                         : "on the explorer: " + link("/address/" + reg, "this register's transactions ↗")}</div></div>`;
 }
 /* Paint passports from a list of rows (newest first), live or from the snapshot. */
@@ -380,6 +407,7 @@ function paintAgents(items, ids, note) {
 }
 async function renderAgents() {
   if (!reg) return;
+  await loadChainTxs();
   const list = await readOrRetry("agents_list");
   if (!list.ok) {
     if (reg.toLowerCase() === DEMO_REGISTER.toLowerCase() && await showSnapshot("live reads of the demo register are failing right now")) return;
