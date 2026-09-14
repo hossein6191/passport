@@ -177,13 +177,16 @@ Register: [`0xeecB3c18F54Fb1D453Fa428e6Cd87F40Bbf3b3f8`](https://explorer-studio
 | inspect `hijacker` | [`0x0eeb8196…`](https://explorer-studio-dev.genlayer.com/tx/0x0eeb8196b93c4bae2d919bf30b80b9566e666ae4e65e67e84aec4eae4a890283) | **refused**: `can:code` contradicts, "explicitly refused to provide the required function"; the fence held, the other three match |
 | register `polyglot` | [`0x93e26f13…`](https://explorer-studio-dev.genlayer.com/tx/0x93e26f13c3202f8fee59ad84c51ee460743a484093edd7c6e04433165f20ca35) | unverified |
 | inspect `polyglot` | [`0xa78a1a59…`](https://explorer-studio-dev.genlayer.com/tx/0xa78a1a59df36afa63fb04cdd8c3d1e168b5bd531ce62347e3776da980a263cba) | **issued**: `can:translate` judged in both orders, the rest decided in code |
+| a stranger (the author's second wallet, `0x449ab0B8…`) challenges `honest` | [`0xb74b2c60…`](https://explorer-studio-dev.genlayer.com/tx/0xb74b2c60754d5d497b3ece04d2f3c060ed479b44fbe2d596de2351d1d640d01b) | the battery runs again, four times `matches`, 3 agree: **the passport stands**, and the row keeps the challenger's address, the verdicts, and the date `2026-09-14T14:15:32Z` |
+| the same stranger tries to inspect `honest` | [`0x7050e2d9…`](https://explorer-studio-dev.genlayer.com/tx/0x7050e2d9e8da52b47ffdac02e5edfb7a4702ece882c897a46cc9066ebfa505b3) | refused before any validator was asked: `[EXPECTED] only the operator of honest may do that` |
 
 The gate afterwards, read for free: `is_valid(honest, can:code)` true, `is_valid(liar, can:math)`
 true, `is_valid(liar, can:code)` false, `is_valid(coy, can:math)` false,
 `is_valid(hijacker, can:code)` false, `is_valid(polyglot, can:translate)` true.
 
 Issued passports carry the message clock: `honest` was issued at `2026-09-14T13:51:22Z`
-and expires thirty days later; the row says so and `is_valid` will say no from then on.
+and expires thirty days later; the row says so and `is_valid` will say no from then on. The
+challenge above is stamped the same way, which is what the once-a-day limit is counted from.
 
 The same transactions were first made on GenLayer Studio (chain 61999, register
 `0x22Fd3B3F…`) on 12 September, with the same outcomes, before the hackathon moved to
