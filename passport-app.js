@@ -13,6 +13,7 @@ const CLAIMS = ["family:gpt", "family:claude", "family:gemini", "family:llama", 
 // The register deployed from the author's wallet on Studio Next on 14 September 2026 (see the README's evidence table).
 // Empty would mean "none yet".
 const DEMO_REGISTER = "0xeecB3c18F54Fb1D453Fa428e6Cd87F40Bbf3b3f8";
+const REMEMBER_KEY = "passport_register2";   // a new key: older browsers remembered whichever demo register they last loaded
 // The six demo agents are served by this same site (api/agent.js on Vercel, tools/serve-agents.mjs locally).
 const DEMO_BASE = location.origin + "/api/agent";
 const DEMO = {
@@ -160,14 +161,17 @@ async function readOrRetry(fn, args = [], tries = 8, address = reg) {
   }
   return { ok: false, error: last };
 }
-async function useRegister(address) {
+async function useRegister(address, remember = false) {
   $("regSt").textContent = "reading " + address + " …";
   const probe = await readOrRetry("rules", [], 8, address);
   if (!probe.ok) {
     if (address.toLowerCase() === DEMO_REGISTER.toLowerCase() && await showSnapshot("Studio did not answer reads for the demo register after eight tries over forty seconds")) return false;
     $("regSt").innerHTML = warn(address + " did not answer rules() after eight tries over forty seconds: not a Passport register, or Studio is refusing reads right now. The explorer still shows it, so press Load again in a minute."); return false;
   }
-  reg = address; try { localStorage.setItem("passport_register", address); } catch (e) {}
+  reg = address;
+  /* Only a register you pasted or deployed yourself is remembered. The demo register is never
+     remembered, so a browser follows it when it changes. */
+  try { if (remember) localStorage.setItem(REMEMBER_KEY, address); else if (DEMO_REGISTER && address.toLowerCase() === DEMO_REGISTER.toLowerCase()) localStorage.removeItem(REMEMBER_KEY); } catch (e) {}
   $("addr").value = address;
   $("regSt").innerHTML = "This register on the explorer: " + link("/address/" + address, address);
   if ($("regLink")) { $("regLink").href = EXPLORER + "/address/" + address; $("regLink").target = "_blank"; $("regLink").rel = "noopener"; }
@@ -176,7 +180,7 @@ async function useRegister(address) {
   if (bat.ok) $("battery").textContent = JSON.parse(String(bat.value)).map((p) => `[${p.id}] ${p.claim} · ${p.kind}\n  ${p.prompt}${p.criteria ? "\n  judged by: " + p.criteria : ""}`).join("\n\n");
   paint(); await renderAgents(); return true;
 }
-$("load").onclick = () => { const a = $("addr").value.trim(); if (/^0x[0-9a-fA-F]{40}$/.test(a)) useRegister(a); else $("regSt").innerHTML = warn("that is not an address"); };
+$("load").onclick = () => { const a = $("addr").value.trim(); if (/^0x[0-9a-fA-F]{40}$/.test(a)) useRegister(a, true); else $("regSt").innerHTML = warn("that is not an address"); };
 
 async function wait(tx, label, target) {
   for (let i = 0; i < 100; i++) {
@@ -221,7 +225,7 @@ $("deploy").onclick = async () => {
     log("  tx " + h + " · " + link("/tx/" + h, "explorer"));
     const r = await c.waitForTransactionReceipt({ hash: h, waitUntil: "decided", retries: 60, interval: 4000, fullTransaction: true }).catch(() => null);
     const A = r?.data?.contract_address; if (!A) throw new Error("the deploy produced no address");
-    log("  ✓ deployed at " + A); await useRegister(A);
+    log("  ✓ deployed at " + A); await useRegister(A, true);
   } catch (e) { log("  ✗ " + esc(e.message || e), "warn"); }
   $("deploy").disabled = false;
 };
@@ -330,18 +334,18 @@ async function showSnapshot(why) {
 
 for (const li of document.querySelectorAll("#steps li")) li.onclick = () => goTo(li.dataset.go);
 paint();
-const saved = (() => { try { return localStorage.getItem("passport_register"); } catch (e) { return null; } })();
+const saved = (() => { try { return localStorage.getItem(REMEMBER_KEY); } catch (e) { return null; } })();
 if ($("useDemoReg") && DEMO_REGISTER) { $("useDemoReg").hidden = false; if ($("useDemoLead")) $("useDemoLead").hidden = false; $("useDemoReg").onclick = () => useRegister(DEMO_REGISTER); }
-/* A remembered register wins, unless it cannot be read on this network (the hackathon moved
-   from Studio to Studio Next, and a browser may still remember a Studio address); then the
-   demo register is loaded and the memory is corrected. */
+/* A register you pasted or deployed yourself wins, unless it cannot be read on this network
+   (the hackathon moved from Studio to Studio Next, and a browser may still remember a Studio
+   address); then the demo register is loaded and the memory is corrected. */
 const first = saved || DEMO_REGISTER;
 if (first) {
   log("loading " + first + (saved ? "" : " (the demo register)") + " …");
   useRegister(first).then((ok) => {
     if (ok || !saved || !DEMO_REGISTER || saved.toLowerCase() === DEMO_REGISTER.toLowerCase()) return;
     log("the remembered register did not answer on this network; loading the demo register instead", "warn");
-    try { localStorage.removeItem("passport_register"); } catch (e) {}
+    try { localStorage.removeItem(REMEMBER_KEY); } catch (e) {}
     useRegister(DEMO_REGISTER);
   });
 }
