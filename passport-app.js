@@ -12,7 +12,7 @@ const CLAIMS = ["family:gpt", "family:claude", "family:gemini", "family:llama", 
                 "can:code", "can:translate", "can:summarize", "can:math", "safe:injection"];
 // The register deployed from the author's wallet on Studio Next on 14 September 2026 (see the README's evidence table).
 // Empty would mean "none yet".
-const DEMO_REGISTER = "0xE7c87cebc62AA60e4BfdFc681Af40AA5af0a792C";
+const DEMO_REGISTER = "0xeecB3c18F54Fb1D453Fa428e6Cd87F40Bbf3b3f8";
 // The six demo agents are served by this same site (api/agent.js on Vercel, tools/serve-agents.mjs locally).
 const DEMO_BASE = location.origin + "/api/agent";
 const DEMO = {
