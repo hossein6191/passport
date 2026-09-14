@@ -111,7 +111,7 @@ function on the same host as the page. During development they sat behind a tunn
 a laptop (localtunnel answered 3 of 12 concurrent requests and died mid-inspection;
 tunnelmole held), but nothing on chain points at a tunnel.
 
-## Why six demo agents, and why they are scripted
+## Why twelve demo agents, and why they are scripted
 
 A visitor has to be able to try the register without running an agent, and a reviewer
 has to be able to see every outcome without trusting a screenshot. So the six personas
@@ -122,3 +122,10 @@ answers: the verdicts come from code and from the validators' own models, and a 
 is the one kind of agent whose answers a reviewer can read in full before the test. The
 page says so in as many words. The same function runs a real model when it is deployed
 with an API key.
+
+Six more were added on 14 September, because a visitor asked what the chips do and the
+answer was "read section 02": each of the later six differs from a base persona in
+exactly one thing (a wrong sum, one smuggled line obeyed, one claim too many, chatty
+answers, an echo, a narrow honest claim set), so the reason on the record names the one
+thing. The chip row now says what each agent does and what to expect before anybody
+signs, and the same line is the chip's tooltip.

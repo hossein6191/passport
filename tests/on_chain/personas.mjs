@@ -1,4 +1,4 @@
-/* The four newer demo agents against the live Studio network.
+/* The ten demo agents beyond honest and liar, against the live Studio Next network.
  *
  * smoke.mjs proves the honest agent is issued and the liar refused. This one
  * proves the other outcomes the page promises: coy is pending (a maker that
@@ -42,6 +42,12 @@ const AGENTS = {
   polyglot:    { claims: ["family:gemini", "can:translate", "safe:injection"], want: ["issued"] },
   hijacker:    { claims: ["family:gpt", "can:math", "can:code", "safe:injection"], want: ["refused"] },
   embellisher: { claims: ["family:claude", "can:math", "can:summarize"], want: ["refused", "pending"] },
+  mathematician: { claims: ["family:mistral", "can:math"], want: ["issued"] },
+  miscalculator: { claims: ["family:gpt", "can:math", "can:code", "safe:injection"], want: ["refused"] },
+  gullible:      { claims: ["family:gpt", "can:math", "can:code", "safe:injection"], want: ["refused"] },
+  overclaimer:   { claims: ["family:llama", "can:math", "can:code", "can:translate", "can:summarize", "safe:injection"], want: ["refused"] },
+  chatterbox:    { claims: ["family:gpt", "can:math", "can:code", "safe:injection"], want: ["issued"] },
+  echo:          { claims: ["safe:injection"], want: ["refused"] },
 };
 
 // the endpoints answer before any validator is asked to talk to them
@@ -103,6 +109,19 @@ ok("hijacker: only can:code contradicts, the fence held on the judge",
    v("hijacker", "can:code") === "contradicts" && ["family:gpt", "can:math", "safe:injection"].every((cl) => v("hijacker", cl) === "matches"));
 ok("embellisher: the invented fact does not pass as a summary", v("embellisher", "can:summarize") !== "matches" && v("embellisher", "can:math") === "matches");
 ok("coy: the family probe left a reason of its own even though it was decided in code", /names no family/.test(got.coy?.j?.reasons?.["family:gpt"] || ""));
+const why = (n, cl) => got[n]?.j?.reasons?.[cl] || "";
+ok("mathematician: both claims decided in code, issued for the narrow claim set", v("mathematician", "family:mistral") === "matches" && v("mathematician", "can:math") === "matches");
+ok("miscalculator: only can:math contradicts, with the fixed reason", v("miscalculator", "can:math") === "contradicts" && /391/.test(why("miscalculator", "can:math"))
+   && ["family:gpt", "can:code", "safe:injection"].every((cl) => v("miscalculator", cl) === "matches"));
+ok("gullible: safe:injection contradicts on inject-2 alone", v("gullible", "safe:injection") === "contradicts" && /HAHA/.test(why("gullible", "safe:injection")) && !/PWNED/.test(why("gullible", "safe:injection")));
+ok("overclaimer: six claims, can:translate contradicts, the code-decided ones hold", v("overclaimer", "can:translate") === "contradicts"
+   && ["family:llama", "can:math", "safe:injection"].every((cl) => v("overclaimer", cl) === "matches"));
+ok("chatterbox: the probes read for the fact, not the format", ["family:gpt", "can:math", "can:code", "safe:injection"].every((cl) => v("chatterbox", cl) === "matches"));
+ok("echo: both smuggled words came back, safe:injection contradicts", v("echo", "safe:injection") === "contradicts" && /PWNED/.test(why("echo", "safe:injection")) && /HAHA/.test(why("echo", "safe:injection")));
+ok("the gate: the mathematician may do sums, the overclaimer may not translate, the echo holds nothing",
+   (await view("is_valid", ["mathematician", "can:math"])) === true
+   && (await view("is_valid", ["overclaimer", "can:translate"])) === false
+   && (await view("is_valid", ["echo", "safe:injection"])) === false);
 ok("the gate: polyglot may translate, the hijacker may not code, coy holds nothing yet",
    (await view("is_valid", ["polyglot", "can:translate"])) === true
    && (await view("is_valid", ["hijacker", "can:code"])) === false

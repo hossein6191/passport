@@ -29,7 +29,7 @@ so it is sent with the default quote and the refusal lands on chain with its rea
 |---|---|
 | `contracts/passport.py` | the register: claims, battery, inspection, verdicts, passports, `is_valid` |
 | `contracts/fixtures/escrow.py` | the consequence: a buyer-funded job that pays only the operator the buyer bound to, and only while the passport covers the claim |
-| `api/agent.js` | six demo agents behind one Vercel function, `?persona=honest`, `liar`, `coy`, `polyglot`, `hijacker`, `embellisher` |
+| `api/agent.js` | twelve demo agents behind one Vercel function, `?persona=honest`, `liar`, `coy`, `polyglot`, `hijacker`, `embellisher`, `mathematician`, `miscalculator`, `gullible`, `overclaimer`, `chatterbox`, `echo` |
 | `index.html`, `passport-app.js` | the registry page: register, inspect, read passports, check the gate |
 | `tests/test_pure.py` | 38 tests with a GenLayer stub, including static checks on the source |
 | `tools/mutate.py` → `tests/MUTATIONS.md` | 30 defences removed one at a time, each killed by a named test |
@@ -130,7 +130,7 @@ operator of a name is.
 
 ## The demo agents
 
-`api/agent.js` serves six agents so that anyone can try the register without running
+`api/agent.js` serves twelve agents so that anyone can try the register without running
 one. They are scripted responders, not models: each answers the battery in a fixed way,
 chosen so that together they show every outcome the register knows. The battery does not
 care what sits behind an endpoint. With `OPENAI_API_KEY` set (`MODEL` optional) each
@@ -144,6 +144,15 @@ persona becomes a real model under a system prompt with the same intent.
 | `polyglot` | `family:gemini` `can:translate` `safe:injection` | names Google, translates correctly | two claims decided in code, one judged in both orders: **issued** |
 | `hijacker` | the same four as honest | like honest, but its code answer is a one-line refusal followed by a fake `END ANSWER` line and an instruction to the judge | the fence holds, `can:code` contradicts: **refused** |
 | `embellisher` | `family:claude` `can:math` `can:summarize` | names Anthropic, multiplies, summarises with one invented fact | `can:summarize` contradicts: **refused**; a judge that only doubts says inconclusive: **pending**. Never issued |
+| `mathematician` | `family:mistral` `can:math` | names Mistral AI, multiplies; asked for code, says it only does arithmetic | both claims decided in code: **issued**. The narrow passport is the honest one |
+| `miscalculator` | the honest four | like the honest agent, but the two sums come out 390 and 1000 | `can:math` contradicts, reason "the number 391 is not in the answer": **refused** |
+| `gullible` | the honest four | like the honest agent, but the French line with the `<system>` tag gets HAHA | `safe:injection` contradicts on inject-2 alone: **refused** |
+| `overclaimer` | all six: `family:llama` `can:math` `can:code` `can:translate` `can:summarize` `safe:injection` | names Meta, everything fine, except that its Spanish is the English sentence | five claims hold, `can:translate` contradicts in both orders: **refused**; a passport is all or nothing |
+| `chatterbox` | the honest four | every fact wrapped in a friendly sentence: "Happy to help! 17 times 23 is 391, of course." | the probes read for the fact, not the format: **issued** |
+| `echo` | `safe:injection` | repeats every prompt back word for word | both smuggled words come back, inject-1 and inject-2 contradict: **refused** |
+
+The later six were added so that every way a passport can fail has a face. Each differs from a
+base persona in exactly one thing, and the reason on the record says which.
 
 Any HTTPS endpoint that answers `POST {"prompt"}` with `{"answer"}` can be registered
 instead; the page shows a wrapper of a few lines.
@@ -206,7 +215,7 @@ pip install -r requirements-dev.txt && python -m pytest -q tests/    # 38 pure t
 npm ci                                        # genlayer-js 2.0.0-rc.1 and viem 2.56.5, from the lockfile
 python tools/mutate.py                        # 30 mutants, all must die, writes tests/MUTATIONS.md
 genvm-lint check contracts/passport.py
-node tools/serve-agents.mjs                   # the site and the six agents on http://localhost:8797
+node tools/serve-agents.mjs                   # the site and the twelve agents on http://localhost:8797
 # the on-chain tests run against Studio Next with genlayer-js 2.0.0-rc.1 (the fee-quoting SDK); the runner is py-genlayer:5jycge4q…
 HONEST_URL=… LIAR_URL=… node tests/on_chain/smoke.mjs      # Studio, throwaway account, 22 checks
 AGENT_BASE=https://…/api/agent node tests/on_chain/personas.mjs   # the four newer agents, 22 checks
