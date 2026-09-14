@@ -118,13 +118,16 @@ def _hex(address: typing.Any) -> str:
 def _now() -> str:
     """The one clock validators agree on: the message's own datetime.
 
-    Measured: `gl.message_raw["datetime"]` is identical on every node for a
-    transaction. There is no block timestamp. "" when the clock is not there,
-    and then expiry is simply not enforced rather than guessed.
+    Measured: `gl.message.datetime` is an ISO string identical on every node
+    for a transaction (GenVM v0.6; older runtimes carried it in
+    `gl.message_raw`). There is no block timestamp. "" when the clock is not
+    there, and then expiry is simply not enforced rather than guessed.
     """
     try:
-        raw = gl.message_raw
-        value = raw.get("datetime") if hasattr(raw, "get") else None
+        value = getattr(gl.message, "datetime", None)
+        if not value:
+            raw = getattr(gl.message, "raw", None)
+            value = raw.get("datetime") if hasattr(raw, "get") else None
         return str(value) if value else ""
     except Exception:
         return ""

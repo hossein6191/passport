@@ -14,7 +14,7 @@ import types
 if "genlayer" not in sys.modules:
     # A stand-in for the GenVM runtime, shaped like the v0.6 SDK: `import genlayer as gl`,
     # gl.contract.Contract, gl.storage.TreeMap / DynArray, gl.u256 / u32 / u64, gl.Address,
-    # gl.vm, gl.public, gl.nondet, gl.message, gl.evm, gl.get_contract_at.
+    # gl.vm, gl.public, gl.nondet, gl.message (datetime), gl.evm, gl.contract.get_at.
     stub = types.ModuleType("genlayer")
     storage = types.ModuleType("genlayer.storage")
 
@@ -52,9 +52,8 @@ if "genlayer" not in sys.modules:
     stub.public = _Public()
     stub.nondet = _Any()
     stub.evm = _Any()
-    stub.message = _Any()
-    stub.message_raw = {}
-    stub.get_contract_at = lambda a: _Any()
+    stub.message = types.SimpleNamespace(sender_address="0x0", datetime="", raw={})
+    stub.contract.get_at = lambda a: _Any()
     stub.Address = str
     stub.u256 = int; stub.u32 = int; stub.u64 = int; stub.i64 = int
     storage.TreeMap = _T
@@ -166,9 +165,9 @@ class TestExpiry:
         c = _contract()
         c.register("a1", "https://x.example/agent", json.dumps(["can:math"]))
         a = c.agents["a1"]; a.status = pp.STATUS_ISSUED; a.issued_at = "2026-09-07T11:00:00Z"
-        pp.gl.message_raw = {"datetime": "2026-09-20T00:00:00Z"}
+        pp.gl.message.datetime = "2026-09-20T00:00:00Z"
         assert c.is_valid("a1", "can:math") is True
-        pp.gl.message_raw = {"datetime": "2026-11-20T00:00:00Z"}
+        pp.gl.message.datetime = "2026-11-20T00:00:00Z"
         assert c.is_valid("a1", "can:math") is False
 
 
@@ -271,7 +270,7 @@ class TestAuthority:
     def test_the_operator_inspects_and_is_recorded_as_the_inspector(self):
         c = _contract("0xOPERATOR")
         c.register("a1", "https://x.example/agent", json.dumps(["can:math"]))
-        pp.gl.message_raw = {"datetime": "2026-09-07T11:00:00Z"}
+        pp.gl.message.datetime = "2026-09-07T11:00:00Z"
         _battery_returning(c, pp.MATCHES)
         out = json.loads(c.inspect("a1"))
         assert out["status"] == pp.STATUS_ISSUED
@@ -286,7 +285,7 @@ class TestAuthority:
             c.challenge("a1")
         assert "only an issued" in str(e.value)
         _issued(c, "a1", at="2026-01-01T00:00:00Z")
-        pp.gl.message_raw = {"datetime": "2026-09-07T11:00:00Z"}   # expired: nothing to challenge
+        pp.gl.message.datetime = "2026-09-07T11:00:00Z"   # expired: nothing to challenge
         with pytest.raises(pp.gl.vm.UserError):
             c.challenge("a1")
 
@@ -294,7 +293,7 @@ class TestAuthority:
         c = _contract("0xOPERATOR")
         c.register("a1", "https://x.example/agent", json.dumps(["can:math"]))
         _issued(c, "a1")
-        pp.gl.message_raw = {"datetime": "2026-09-08T11:00:00Z"}
+        pp.gl.message.datetime = "2026-09-08T11:00:00Z"
         _as("0xSTRANGER")
         _battery_returning(c, pp.INCONCLUSIVE)
         out = json.loads(c.challenge("a1"))
@@ -306,7 +305,7 @@ class TestAuthority:
         c = _contract("0xOPERATOR")
         c.register("a1", "https://x.example/agent", json.dumps(["can:math"]))
         _issued(c, "a1")
-        pp.gl.message_raw = {"datetime": "2026-09-08T11:00:00Z"}
+        pp.gl.message.datetime = "2026-09-08T11:00:00Z"
         _as("0xSTRANGER")
         _battery_returning(c, pp.CONTRADICTS)
         out = json.loads(c.challenge("a1"))
@@ -322,13 +321,13 @@ class TestAuthority:
         _issued(c, "a1")
         _battery_returning(c, pp.MATCHES)
         _as("0xSTRANGER")
-        pp.gl.message_raw = {"datetime": "2026-09-08T11:00:00Z"}
+        pp.gl.message.datetime = "2026-09-08T11:00:00Z"
         c.challenge("a1")
-        pp.gl.message_raw = {"datetime": "2026-09-08T20:00:00Z"}
+        pp.gl.message.datetime = "2026-09-08T20:00:00Z"
         with pytest.raises(pp.gl.vm.UserError) as e:
             c.challenge("a1")
         assert "less than" in str(e.value)
-        pp.gl.message_raw = {"datetime": "2026-09-09T11:00:00Z"}
+        pp.gl.message.datetime = "2026-09-09T11:00:00Z"
         assert json.loads(c.challenge("a1"))["outcome"] == "stands"
         assert c.agents["a1"].challenges == 2
 
@@ -336,7 +335,7 @@ class TestAuthority:
         """Journeys, not single calls: every refused party ends somewhere."""
         c = _contract("0xOPERATOR")
         c.register("a1", "https://x.example/agent", json.dumps(["can:math", "can:code"]))
-        pp.gl.message_raw = {"datetime": "2026-09-07T11:00:00Z"}
+        pp.gl.message.datetime = "2026-09-07T11:00:00Z"
         _battery_returning(c, pp.CONTRADICTS)
         c.inspect("a1")
         assert c.agents["a1"].status == pp.STATUS_REFUSED
@@ -379,9 +378,6 @@ class TestEscrow:
 
     def _world(self, monkeypatch, sender, valid, row, raising=False, now="2026-09-13T00:00:00Z"):
         transfers = []
-        class Payee:
-            def __init__(self, who): self.who = who
-            def emit_transfer(self, value): transfers.append((str(self.who), int(value)))
         class View:
             def is_valid(self, a, c):
                 if raising: raise RuntimeError("Contract not found")
@@ -391,10 +387,14 @@ class TestEscrow:
                 return json.dumps(row)
         class Reg:
             def view(self): return View()
-        gl = types.SimpleNamespace(message=types.SimpleNamespace(sender_address=sender, value=0),
-                                   message_raw={"datetime": now}, get_contract_at=lambda addr: Reg(), vm=es.gl.vm)
+        class Proxy:
+            def __init__(self, addr): self.addr = addr
+            def view(self): return View()
+            def emit_transfer(self, value): transfers.append((str(self.addr), int(value)))
+        gl = types.SimpleNamespace(message=types.SimpleNamespace(sender_address=sender, value=0, datetime=now, raw={"datetime": now}),
+                                   contract=types.SimpleNamespace(get_at=lambda addr: Proxy(addr)), vm=es.gl.vm)
         gl.Address = self._A; gl.u256 = int
-        monkeypatch.setattr(es, "gl", gl); monkeypatch.setattr(es, "_Payee", Payee)
+        monkeypatch.setattr(es, "gl", gl)
         return gl, transfers
 
     def _job(self, monkeypatch, gl, buyer, op, ep, pool=5):

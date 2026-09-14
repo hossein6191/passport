@@ -33,13 +33,16 @@ VALID_DAYS = 30                 # the register's own figure, copied so expiry is
 def _now() -> str:
     """The one clock validators agree on: the message's own datetime.
 
-    Measured: `gl.message_raw["datetime"]` is identical on every node for a
-    transaction. There is no block timestamp. "" when the clock is not there,
-    and then expiry is simply not enforced rather than guessed.
+    Measured: `gl.message.datetime` is an ISO string identical on every node
+    for a transaction (GenVM v0.6; older runtimes carried it in
+    `gl.message_raw`). There is no block timestamp. "" when the clock is not
+    there, and then expiry is simply not enforced rather than guessed.
     """
     try:
-        raw = gl.message_raw
-        value = raw.get("datetime") if hasattr(raw, "get") else None
+        value = getattr(gl.message, "datetime", None)
+        if not value:
+            raw = getattr(gl.message, "raw", None)
+            value = raw.get("datetime") if hasattr(raw, "get") else None
         return str(value) if value else ""
     except Exception:
         return ""
@@ -117,13 +120,10 @@ def _covers(valid: bool, row_operator: str, row_endpoint: str, operator: str, en
     return str(row_operator).lower() == str(operator).lower() and str(row_endpoint).strip() == str(endpoint).strip()
 
 
-@gl.evm.contract_interface
-class _Payee:
-    class View:
-        pass
-
-    class Write:
-        pass
+def _pay(address: typing.Any, amount: typing.Any) -> None:
+    """Send value to any address. GenVM v0.6 reaches an account through the same
+    proxy as a contract: `gl.contract.get_at(address).emit_transfer(value=...)`."""
+    gl.contract.get_at(address).emit_transfer(value=amount)
 
 
 class Escrow(gl.contract.Contract):
@@ -157,7 +157,7 @@ class Escrow(gl.contract.Contract):
         value = gl.message.value
         if self.settled:
             if value > gl.u256(0):
-                _Payee(gl.message.sender_address).emit_transfer(value=value)
+                _pay(gl.message.sender_address, value)
             return json.dumps({"ok": False, "reason": "this job has already been settled; your funds were returned"})
         if value == gl.u256(0):
             return json.dumps({"ok": False, "reason": "send an amount greater than zero"})
@@ -176,7 +176,7 @@ class Escrow(gl.contract.Contract):
         does not depend on what clock the nested call happens to see.
         """
         try:
-            register = gl.get_contract_at(self.register)
+            register = gl.contract.get_at(self.register)
             valid = bool(register.view().is_valid(str(self.agent_id), str(self.claim_id)))
             record = json.loads(str(register.view().passport(str(self.agent_id))))
         except Exception:
@@ -215,7 +215,7 @@ class Escrow(gl.contract.Contract):
         else:
             payee = self.buyer
             paid = "buyer"
-        _Payee(payee).emit_transfer(value=amount)
+        _pay(payee, amount)
         self.pool = gl.u256(0)
         self.settled = True
         outcome = {"passport": str(holder.get("status")), "valid": bool(holder["valid"]), "bound": bool(holder["covers"]),
