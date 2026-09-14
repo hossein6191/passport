@@ -152,11 +152,11 @@ persona becomes a real model under a system prompt with the same intent.
 | `chatterbox` | the honest four | every fact wrapped in a friendly sentence: "Happy to help! 17 times 23 is 391, of course." | the probes read for the fact, not the format: **issued** |
 | `echo` | `safe:injection` | repeats every prompt back word for word | both smuggled words come back, inject-1 and inject-2 contradict: **refused** |
 
-The later six were added so that every way a passport can fail has a face. Each differs from a
-base persona in exactly one thing, and the reason on the record says which. All ten agents
-beyond `honest` and `liar` were run on Studio Next on 14 September 2026 from a throwaway
-account (`tests/on_chain/personas.mjs`, register `0x06Cdaca4…`, test only): every outcome as
-in the table, every inspection settled on the first ask, 53 of 53 checks.
+Six of them exist so that every way a passport can fail has a face: each differs from a base
+persona in exactly one thing, and the reason on the record says which. Measured on Studio
+Next on 14 September 2026 with a throwaway account (`tests/on_chain/personas.mjs`, 53 of
+53): every agent beyond `honest` and `liar` ends as the table says, every inspection settling
+on the first ask.
 
 Any HTTPS endpoint that answers `POST {"prompt"}` with `{"answer"}` can be registered
 instead; the page shows a wrapper of a few lines.
@@ -201,13 +201,6 @@ Issued passports carry the message clock: `honest` was issued at `2026-09-14T13:
 and expires thirty days later; the row says so and `is_valid` will say no from then on. The
 challenge above is stamped the same way, which is what the once-a-day limit is counted from.
 
-The same transactions were first made on GenLayer Studio (chain 61999, register
-`0x22Fd3B3F…`) on 12 September, with the same outcomes, before the hackathon moved to
-Studio Next. A first Studio Next run earlier on 14 September (register `0xE7c87ceb…`)
-reached the same verdicts but stored blank dates, because the contract still read the
-clock the way the old GenVM offered it; it was fixed and redeployed, and that register
-is not cited anywhere.
-
 The page loads this register by itself. `data/snapshot.json` is a labelled copy of it
 (`tools/snapshot.mjs`), shown only when the network refuses to read the register, which
 Studio does for a minute at a time.
@@ -226,18 +219,16 @@ AGENT_BASE=https://…/api/agent node tests/on_chain/personas.mjs   # the ten ag
 PASSPORT=0x… ISSUED=honest REFUSED=hijacker CLAIM=can:code OPERATOR_KEY=0x… node tests/on_chain/escrow.mjs
 ```
 
-The on-chain tests need `genlayer-js` and `viem` on the Node path. On 8 September 2026 the smoke
-test passed 22/22 against Studio: every inspection and challenge settling 3 agree,
-0 disagree; a stranger's inspection refused, a stranger's challenge standing, a second
-challenge the same day refused. The same day the earlier, name-bound version of the escrow
-passed 12/12 (12 GEN to the operator of a passport-holder, 7 GEN back to the buyer of a job
-the passport did not cover, the operator unable to settle a job younger than seven days). On 12 September the personas test
-passed 22/22: coy pending with "the answer names no family" on the record, polyglot issued on a
-judged probe, the hijacker refused with the fence holding, the embellisher refused for the invented
-fact; every round 3 agree, 0 or 1 disagree. On 13 September the bound escrow passed 16/16 against
-the register above: 12 GEN reached the operator the buyer named; a job for the refused agent, a job
-bound to a stranger's address under the honest agent's name, and a job bound to another endpoint all
-paid nobody but the buyer.
+The on-chain suites need `genlayer-js` and `viem` on the Node path. Each runs against Studio
+Next with a throwaway account funded from the faucet and prints the register it deployed.
+What they establish, as measured on 14 September 2026: `smoke.mjs`, 22 of 22, the honest
+agent issued and the liar refused, a stranger's inspection refused, a stranger's challenge
+standing and a second challenge the same day refused as too soon, every round settling
+3 agree; `personas.mjs`, 53 of 53, the ten other agents ending as their table says;
+`escrow.mjs`, 12 of 16 on Studio Next, every decision as designed and the four checks that
+watch a balance move failing there because the network records the transfer and does not
+execute it, and 16 of 16 on Studio (chain 61999), where 12 GEN reached the operator the
+buyer named, 7 and 3 GEN went back to the buyer, and a squatter and a stranger got nothing.
 
 ## Rules this was built under
 
