@@ -1,0 +1,72 @@
+{
+ "register": "0xeecB3c18F54Fb1D453Fa428e6Cd87F40Bbf3b3f8",
+ "note": "The transactions in the README's evidence table, read by the page to put an explorer link under each passport of the demo register.",
+ "agents": {
+  "honest": [
+   {
+    "what": "registered",
+    "tx": "0xd31141d57743eae1c87e27b59d5122668381b36f529d1b519ccd8210a0593bbc"
+   },
+   {
+    "what": "inspected",
+    "tx": "0x95b01f9731db5907d58c6c447fe696b943ce99538e39056c076358d34b5ff616"
+   },
+   {
+    "what": "challenged by a stranger, stands",
+    "tx": "0xb74b2c60754d5d497b3ece04d2f3c060ed479b44fbe2d596de2351d1d640d01b"
+   },
+   {
+    "what": "a stranger's inspect, refused",
+    "tx": "0x7050e2d9e8da52b47ffdac02e5edfb7a4702ece882c897a46cc9066ebfa505b3"
+   }
+  ],
+  "liar": [
+   {
+    "what": "registered",
+    "tx": "0x4afd35a2096c1fcd323148aa38c9920685313f6dc5a04e5df73e1f08d1d98edb"
+   },
+   {
+    "what": "inspected",
+    "tx": "0x1d091d57b1d4a9abbf38c69b364785518b4964cae7c9cee103b2a0a373bca945"
+   },
+   {
+    "what": "claims narrowed to can:math",
+    "tx": "0x48af912a80f94fc1c0061595cb06b07f4538ea797aaba97027560ee791631547"
+   },
+   {
+    "what": "inspected again, issued",
+    "tx": "0x1da19c9d635830cab87ab97dc3db50c3e325bba2151b3e9a00aa90d8e680ed0e"
+   }
+  ],
+  "coy": [
+   {
+    "what": "registered",
+    "tx": "0x08be39f89f5ffbed8fd8dc08b31477aa6e7727106f22eb4f2703ce4cbf122f11"
+   },
+   {
+    "what": "inspected",
+    "tx": "0xd9bb8c617070c143eb3588703f202300bf3ded85f1495b0ccaf6a05cc28ebb97"
+   }
+  ],
+  "hijacker": [
+   {
+    "what": "registered",
+    "tx": "0xd76266cb6d07367e06b0094c4046b3b28fa49220a32695b664c17bbda3f7d243"
+   },
+   {
+    "what": "inspected",
+    "tx": "0x0eeb8196b93c4bae2d919bf30b80b9566e666ae4e65e67e84aec4eae4a890283"
+   }
+  ],
+  "polyglot": [
+   {
+    "what": "registered",
+    "tx": "0x93e26f13c3202f8fee59ad84c51ee460743a484093edd7c6e04433165f20ca35"
+   },
+   {
+    "what": "inspected",
+    "tx": "0xa78a1a59df36afa63fb04cdd8c3d1e168b5bd531ce62347e3776da980a263cba"
+   }
+  ]
+ }
+}

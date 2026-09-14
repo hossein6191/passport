@@ -376,6 +376,7 @@ footer .built{max-width:620px}
 .demo .head{display:flex;justify-content:space-between;align-items:center;gap:10px}
 .demo h3{margin:0;font-size:16px;font-weight:600;letter-spacing:-.01em}
 .demo p{margin:0;font-size:13.5px;color:var(--ink-2);text-wrap:pretty}
+.agent .explorer{margin-top:8px;padding-top:8px;border-top:1px solid var(--line);font-size:12px;line-height:1.7}
 .demo p b{color:var(--ink);font-weight:600}
 .demo .mono{font-size:12px;word-break:break-word}
 .demo .chip{align-self:flex-start;margin-top:auto}
@@ -809,7 +810,7 @@ html.anim .rv:not(.in){opacity:0;transform:translateY(14px)}
 
 <!-- the app, untouched; loaded so that a failed load is said out loud instead of leaving dead buttons -->
 <script type="module">
-import("./passport-app.js?v=5").catch(function (e) {
+import("./passport-app.js?v=6").catch(function (e) {
   var why = String(e && e.message || e).replace(/[<>&]/g, "");
   var l = document.getElementById("log"); if (l) l.innerHTML += '\n<span class="warn">✗ the app could not load (' + why + '); reload the page</span>';
   var h = document.getElementById("railHint"); if (h) h.textContent = "the app did not load (" + why + "); reload the page";

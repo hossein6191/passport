@@ -59,6 +59,28 @@ const link = (path, text) => `<a href="${EXPLORER}${path}" target="_blank" rel="
    says can be checked where it happened, not only in the log. */
 const txLink = (r) => (r?.tx ? " · " + link("/tx/" + r.tx, "tx " + r.tx.slice(0, 10) + "… on the explorer ↗") : "");
 const done = (el, text, r) => { el.innerHTML = esc(text) + txLink(r); };
+/* Under every passport in section 06: the explorer links of the transactions that made it. A
+   contract cannot know its own transaction hashes, so they come from two places: data/evidence.json
+   (the demo register's transactions, the same ones the README cites) and this browser's memory of
+   the transactions it signed itself, kept per register. */
+let EVIDENCE = null;
+fetch("./data/evidence.json?v=" + Date.now()).then((r) => (r.ok ? r.json() : null)).then((j) => { EVIDENCE = j; if (reg) renderAgents(); }).catch(() => {});
+const MINE_KEY = "passport_txs";
+const mine = (() => { try { return JSON.parse(localStorage.getItem(MINE_KEY) || "{}") || {}; } catch (e) { return {}; } })();
+function remember(id, what, r) {
+  if (!r?.tx || !reg) return;
+  const k = reg.toLowerCase(); mine[k] = mine[k] || {}; mine[k][id] = mine[k][id] || [];
+  mine[k][id].push({ what, tx: r.tx });
+  try { localStorage.setItem(MINE_KEY, JSON.stringify(mine)); } catch (e) {}
+}
+function txsOf(id) {
+  const k = (reg || "").toLowerCase();
+  const known = EVIDENCE && String(EVIDENCE.register || "").toLowerCase() === k ? (EVIDENCE.agents || {})[id] || [] : [];
+  const own = (mine[k] || {})[id] || [];
+  const seen = new Set(); const out = [];
+  for (const t of [...known, ...own]) { if (t?.tx && !seen.has(t.tx)) { seen.add(t.tx); out.push(t); } }
+  return out;
+}
 const warn = (t) => `<span class="warn">${esc(t)}</span>`;
 const log = (m, cls) => { const e = $("log"); e.innerHTML += "\n" + (cls ? `<span class="${cls}">${m}</span>` : m); for (const box of [e, e.parentElement]) if (box) box.scrollTop = box.scrollHeight; };
 const goTo = (id) => { const el = $(id); if (el) el.scrollIntoView({ behavior: "smooth", block: "start" }); };
@@ -286,7 +308,7 @@ $("register").onclick = async () => {
   const id = $("aid").value.trim(), ep = $("endpoint").value.trim(), claims = chosenClaims();
   if (!id || !ep || !claims.length) { $("regAgentSt").innerHTML = warn("an id, an https endpoint and at least one claim; the try chips above fill all three"); return; }
   const r = await send("register", [id, ep, JSON.stringify(claims)], "registering " + id, $("regAgentSt")).catch((e) => ({ msg: e.message }));
-  if (r?.j?.ok) { progress.registered = true; done($("regAgentSt"), `registered ${id}: ${r.j.status}. Now Inspect it in section 05`, r); pick(id, claims[0]); }
+  if (r?.j?.ok) { progress.registered = true; remember(id, "registered", r); done($("regAgentSt"), `registered ${id}: ${r.j.status}. Now Inspect it in section 05`, r); pick(id, claims[0]); }
   else done($("regAgentSt"), (r?.msg || "failed").slice(0, 200), r);
   paint(); await renderAgents();
 };
@@ -294,6 +316,7 @@ $("update").onclick = async () => {
   if (!(await ready($("regAgentSt")))) return;
   const id = $("aid").value.trim(), ep = $("endpoint").value.trim(), claims = chosenClaims();
   const r = await send("update", [id, ep, JSON.stringify(claims)], "updating " + id, $("regAgentSt")).catch((e) => ({ msg: e.message }));
+  if (r?.j?.ok) remember(id, "claims updated", r);
   done($("regAgentSt"), r?.j?.ok ? `updated ${id}: ${r.j.status}. Ask for a new inspection` : (r?.msg || "failed").slice(0, 200), r);
   await renderAgents();
 };
@@ -309,7 +332,7 @@ $("inspect").onclick = async () => {
   const id = $("iid").value.trim(); if (!id) { $("inspectSt").innerHTML = warn("pick an agent above first"); return; }
   $("inspect").disabled = true;
   const r = await send("inspect", [id], "inspecting " + id, $("inspectSt")).catch((e) => ({ msg: e.message }));
-  if (r?.j?.ok) { progress.inspected = true; done($("inspectSt"), `${id}: ${r.j.status}. The passport is in section 06`, r); log("  " + JSON.stringify(r.j.verdicts)); }
+  if (r?.j?.ok) { progress.inspected = true; remember(id, "inspected, " + r.j.status, r); done($("inspectSt"), `${id}: ${r.j.status}. The passport is in section 06`, r); log("  " + JSON.stringify(r.j.verdicts)); }
   else done($("inspectSt"), r?.split ? "no consensus, so nothing was stored; press again" : (r?.msg || "failed").slice(0, 160), r);
   $("inspect").disabled = false;
   paint(); await renderAgents();
@@ -319,7 +342,7 @@ $("challenge").onclick = async () => {
   const id = $("iid").value.trim(); if (!id) { $("inspectSt").innerHTML = warn("pick an agent above first"); return; }
   $("challenge").disabled = true;
   const r = await send("challenge", [id], "challenging " + id, $("inspectSt")).catch((e) => ({ msg: e.message }));
-  if (r?.j?.ok) { done($("inspectSt"), `${id}: the passport ${r.j.outcome === "stands" ? "stands" : "was refused"} (${r.j.status})`, r); log("  " + JSON.stringify(r.j.verdicts)); }
+  if (r?.j?.ok) { remember(id, "challenged, " + (r.j.outcome === "stands" ? "stands" : "refused"), r); done($("inspectSt"), `${id}: the passport ${r.j.outcome === "stands" ? "stands" : "was refused"} (${r.j.status})`, r); log("  " + JSON.stringify(r.j.verdicts)); }
   else done($("inspectSt"), r?.split ? "no consensus, so nothing was stored; press again" : (r?.msg || "failed").slice(0, 160), r);
   $("challenge").disabled = false;
   await renderAgents();
@@ -340,7 +363,9 @@ function agentCard(a) {
       <div class="mono">claims: ${(a.claims || []).map(esc).join(", ")}</div>
       ${a.inspections ? `<div class="mono muted">last inspected by ${esc(a.last_inspector)}</div>` : ""}
       ${a.challenges ? `<div class="mono muted">challenged ${a.challenges}× · last by ${esc(a.last_challenge?.by || "")} on ${esc(String(a.last_challenge?.at || "").slice(0, 10))} → <b>${esc(a.last_challenge?.outcome || "")}</b></div>` : ""}
-      ${rows ? `<div class="verdicts">${rows}</div>` : '<p class="fine">not inspected yet</p>'}</div>`;
+      ${rows ? `<div class="verdicts">${rows}</div>` : '<p class="fine">not inspected yet</p>'}
+      <div class="mono muted explorer">${txsOf(a.agent).length ? "on the explorer: " + txsOf(a.agent).map((t) => link("/tx/" + t.tx, t.what + " ↗")).join(" · ")
+                                                        : "on the explorer: " + link("/address/" + reg, "this register's transactions ↗")}</div></div>`;
 }
 /* Paint passports from a list of rows (newest first), live or from the snapshot. */
 function paintAgents(items, ids, note) {
