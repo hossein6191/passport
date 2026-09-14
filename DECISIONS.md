@@ -86,6 +86,23 @@ Inspection costs consensus and the agent's operator does not pay for it. Without
 guard, a refused operator could ask until a lucky run issued. The way out is honest:
 change the endpoint or the claims, which resets the passport and reopens inspection.
 
+## Studio Next, and what the v0.6 runtime changed
+
+The hackathon requires Studio Next (consensus v0.6, chain 61997). Measured on 14
+September 2026 with a throwaway account: the runner id the network accepts is
+`py-genlayer:5jycge4q8k23462jtb0b9fyey1s9qz928sz2nbrd9mg4sxqg2qng` (the one in the
+Studio v0.123 examples; the older ids answer "invalid_contract runner malformed"); the
+SDK is imported as `import genlayer as gl` with `gl.contract.Contract`, `gl.storage.TreeMap`,
+`gl.u256` and `gl.Address` (the star import no longer defines `gl`); the nondet round is
+`gl.vm.run_nondet(leader_fn, validator_fn)` and returns the leader's value. Everything
+else the register relies on still holds there: `gl.nondet.web.post` with `.status` and
+`.body`, `gl.nondet.exec_prompt`, the message clock, cross-contract views. Every write
+carries a fee quote from `estimateTransactionFeesForWrite`, which simulates the call; a
+call the contract refuses cannot be simulated, so those go with the default quote. A
+transaction is applied at `ACCEPTED` (decided) and finalizes later; the page shows the
+result at `ACCEPTED`. The whole battery, a refusal, a stranger's refused inspection and a
+challenge all settled on Studio Next with 3 validators agreeing, at fees below 0.001 GEN.
+
 ## Where the agents live
 
 The register stores an HTTPS endpoint and validators fetch it themselves, so the demo

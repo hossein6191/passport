@@ -16,7 +16,12 @@ It is five independent observers agreeing on behaviour, and it says *inconclusiv
 the behaviour did not settle the question.
 
 Built for the GenLayer Agent Tank hackathon (Agentic Commerce), September 2026.
-Live at https://passport-two-taupe.vercel.app.
+Live at https://passport-two-taupe.vercel.app, on **GenLayer Studio Next** (consensus v0.6,
+chain 61997, RPC `https://studio-next.genlayer.com/api`, explorer
+`https://explorer-studio-dev.genlayer.com`). Every write there carries a quoted fee: the page
+and the tests simulate a call first and submit the fee the simulation recommends, and the
+unused part is refunded at finalization. A call the contract refuses cannot be simulated,
+so it is sent with the default quote and the refusal lands on chain with its reason.
 
 ## What is in the box
 
@@ -138,7 +143,9 @@ instead; the page shows a wrapper of a few lines.
 ## Evidence
 
 Everything below was signed from the author's own wallet on 12 September 2026 on
-GenLayer Studio. The register's deployed bytes equal `contracts/passport.py` in this
+GenLayer Studio (chain 61999). The hackathon moved to Studio Next on 14 September; the
+same contract, ported to the v0.6 runner, is being redeployed there from the same wallet
+and this table will be replaced by the Studio Next transactions. The register's deployed bytes equal `contracts/passport.py` in this
 repository (sha256 `ee130173ac3a6bd8987a1a3e42a72d671d1a9003b78cf73c2f1f791a8d5a4983`,
 checked with `gen_getContractCode`). Every inspection settled with 3 validators agreeing
 and none disagreeing, except the hijacker's (3 agree, 1 disagree, 1 idle).
@@ -180,6 +187,7 @@ npm ci                                        # genlayer-js 1.1.8 and viem 2.56.
 python tools/mutate.py                        # 30 mutants, all must die, writes tests/MUTATIONS.md
 genvm-lint check contracts/passport.py
 node tools/serve-agents.mjs                   # the site and the six agents on http://localhost:8797
+# the on-chain tests run against Studio Next with genlayer-js 2.0.0-rc.1 (the fee-quoting SDK); the runner is py-genlayer:5jycge4q…
 HONEST_URL=… LIAR_URL=… node tests/on_chain/smoke.mjs      # Studio, throwaway account, 22 checks
 AGENT_BASE=https://…/api/agent node tests/on_chain/personas.mjs   # the four newer agents, 22 checks
 PASSPORT=0x… ISSUED=honest REFUSED=hijacker CLAIM=can:code OPERATOR_KEY=0x… node tests/on_chain/escrow.mjs

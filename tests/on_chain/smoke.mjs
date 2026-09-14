@@ -10,11 +10,20 @@
  *   node tests/on_chain/smoke.mjs
  */
 import { createClient, createAccount } from "genlayer-js";
-import { studionet } from "genlayer-js/chains";
+import { studioDevnet } from "genlayer-js/chains";
 import { generatePrivateKey } from "viem/accounts";
 import { readFileSync } from "node:fs";
 
-const RPC = "https://studio.genlayer.com/api";
+const RPC = "https://studio-next.genlayer.com/api";
+/* Studio Next (consensus v0.6, chain 61997): every write carries a quoted fee. The SDK simulates
+   the call and quotes what it saw; a call the contract refuses cannot be simulated, so the
+   default quote is used and the refusal lands with its reason. Unused fee comes back. */
+const NETWORK = { ...studioDevnet, rpcUrls: { default: { http: [RPC] } } };
+const feesFor = async (client, address, fn, args) => {
+  try { const e = await client.estimateTransactionFeesForWrite({ address, functionName: fn, args }); return { distribution: e.distribution, messageAllocations: e.messageAllocations, feeValue: e.feeValue }; }
+  catch (x) { const d = await client.estimateTransactionFees({}); return { distribution: d.distribution, feeValue: d.feeValue }; }
+};
+const deployFees = async (client) => { const d = await client.estimateTransactionFees({}); return { distribution: d.distribution, feeValue: d.feeValue }; };
 const rpc = async (m, p) => {
   let last;
   for (let i = 0; i < 8; i++) {
@@ -36,12 +45,12 @@ const opKey = generatePrivateKey(); const op = createAccount(opKey);
 const stranger = createAccount(generatePrivateKey());
 await rpc("sim_fundAccount", { account_address: op.address, amount: 600e18 });
 await rpc("sim_fundAccount", { account_address: stranger.address, amount: 200e18 });
-const c = createClient({ chain: studionet, account: op });
-const cs = createClient({ chain: studionet, account: stranger });
-const rd = createClient({ chain: studionet });
+const c = createClient({ chain: NETWORK, account: op });
+const cs = createClient({ chain: NETWORK, account: stranger });
+const rd = createClient({ chain: NETWORK });
 const code = readFileSync(new URL("../../contracts/passport.py", import.meta.url));
-const dh = await c.deployContract({ code, args: [], leaderOnly: false });
-const A = (await c.waitForTransactionReceipt({ hash: dh, status: "ACCEPTED", retries: 40, interval: 4000 }))?.data?.contract_address;
+const dh = await c.deployContract({ code, args: [], fees: await deployFees(c) });
+const A = (await c.waitForTransactionReceipt({ hash: dh, waitUntil: "decided", retries: 40, interval: 4000, fullTransaction: true }))?.data?.contract_address;
 console.log("Passport at", A, "\n");
 
 const wait = async (tx) => {
@@ -49,7 +58,7 @@ const wait = async (tx) => {
     await new Promise((r) => setTimeout(r, 4000));
     const t = await rpc("eth_getTransactionByHash", [tx]);
     if (t?.status === "CANCELED") return { msg: "CANCELED", exec: "CANCELED", votes: { a: 0, d: 0, idl: 0 }, applied: false };
-    if (t?.status === "FINALIZED") {
+    if (t?.status === "ACCEPTED" || t?.status === "FINALIZED") {
       const lr = t.consensus_data?.leader_receipt, one = Array.isArray(lr) ? lr[0] : lr;
       let msg = ""; try { msg = Buffer.from(one.result, "base64").toString("utf8").replace(/[^\x20-\x7e]/g, " ").trim(); } catch (e) {}
       let a = 0, d = 0, idl = 0;
@@ -60,7 +69,7 @@ const wait = async (tx) => {
   }
   return { msg: "TIMEOUT", exec: "", votes: { a: 0, d: 0, idl: 0 }, applied: false };
 };
-const send = async (client, fn, args) => await wait(await client.writeContract({ address: A, functionName: fn, args }));
+const send = async (client, fn, args) => await wait(await client.writeContract({ address: A, functionName: fn, args, fees: await feesFor(client, A, fn, args) }));
 const view = async (fn, args = []) => { try { return await rd.readContract({ address: A, functionName: fn, args }); } catch (e) { const r = e?.cause?.data?.receipt?.result; let why = ""; try { why = Buffer.from(r, "base64").toString("utf8").replace(/[^\x20-\x7e]/g, " ").trim(); } catch (_) {} return "VIEW ERROR " + fn + ": " + (why || e?.shortMessage || String(e)).slice(0, 120); } };
 const tally = (r) => `${r.votes.a} agree, ${r.votes.d} disagree, ${r.votes.idl} idle`;
 

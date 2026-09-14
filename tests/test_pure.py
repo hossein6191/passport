@@ -12,7 +12,11 @@ import sys
 import types
 
 if "genlayer" not in sys.modules:
+    # A stand-in for the GenVM runtime, shaped like the v0.6 SDK: `import genlayer as gl`,
+    # gl.contract.Contract, gl.storage.TreeMap / DynArray, gl.u256 / u32 / u64, gl.Address,
+    # gl.vm, gl.public, gl.nondet, gl.message, gl.evm, gl.get_contract_at.
     stub = types.ModuleType("genlayer")
+    storage = types.ModuleType("genlayer.storage")
 
     class _Any:
         def __getattr__(self, n): return _Any()
@@ -36,26 +40,29 @@ if "genlayer" not in sys.modules:
             payable = staticmethod(lambda f: f)
         write = _Write()
 
-    class _GL:
-        vm = _VM()
-        public = _Public()
-        class Contract: pass
-        def __getattr__(self, n): return _Any()
-
-    gl = _GL()
-
     class _T:
         def __init__(self, *a, **k): pass
         def __class_getitem__(cls, item): return cls
 
-    stub.gl = gl
-    stub.allow_storage = lambda c: c
+    class _ContractNS:
+        class Contract: pass
+
+    stub.contract = _ContractNS()
+    stub.vm = _VM()
+    stub.public = _Public()
+    stub.nondet = _Any()
+    stub.evm = _Any()
+    stub.message = _Any()
+    stub.message_raw = {}
+    stub.get_contract_at = lambda a: _Any()
     stub.Address = str
-    stub.DynArray = _T
-    stub.TreeMap = _T
     stub.u256 = int; stub.u32 = int; stub.u64 = int; stub.i64 = int
-    stub.__all__ = ["gl", "allow_storage", "Address", "DynArray", "TreeMap", "u256", "u32", "u64", "i64"]
+    storage.TreeMap = _T
+    storage.DynArray = _T
+    storage.allow = lambda c: c
+    stub.storage = storage
     sys.modules["genlayer"] = stub
+    sys.modules["genlayer.storage"] = storage
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 import importlib.util  # noqa: E402
@@ -386,7 +393,8 @@ class TestEscrow:
             def view(self): return View()
         gl = types.SimpleNamespace(message=types.SimpleNamespace(sender_address=sender, value=0),
                                    message_raw={"datetime": now}, get_contract_at=lambda addr: Reg(), vm=es.gl.vm)
-        monkeypatch.setattr(es, "gl", gl); monkeypatch.setattr(es, "_Payee", Payee); monkeypatch.setattr(es, "Address", self._A)
+        gl.Address = self._A; gl.u256 = int
+        monkeypatch.setattr(es, "gl", gl); monkeypatch.setattr(es, "_Payee", Payee)
         return gl, transfers
 
     def _job(self, monkeypatch, gl, buyer, op, ep, pool=5):

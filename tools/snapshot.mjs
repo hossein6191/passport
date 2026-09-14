@@ -6,12 +6,12 @@
      node tools/snapshot.mjs 0x…            # writes data/snapshot.json
 */
 import { createClient } from "genlayer-js";
-import { studionet } from "genlayer-js/chains";
+import { studioDevnet } from "genlayer-js/chains";
 import { writeFileSync, mkdirSync } from "node:fs";
 
 const A = process.argv[2];
 if (!/^0x[0-9a-fA-F]{40}$/.test(A || "")) { console.error("usage: node tools/snapshot.mjs 0x<register>"); process.exit(2); }
-const rd = createClient({ chain: studionet });
+const rd = createClient({ chain: { ...studioDevnet, rpcUrls: { default: { http: ["https://studio-next.genlayer.com/api"] } } } });
 async function read(fn, args = []) {
   let last;
   for (let i = 0; i < 8; i++) {

@@ -1,4 +1,4 @@
-# { "Depends": "py-genlayer:1jb45aa8ynh2a9c9xn3b7qqh8sm5q93hwfp7jqmwsfhh8jpz09h6" }
+# { "Depends": "py-genlayer:5jycge4q8k23462jtb0b9fyey1s9qz928sz2nbrd9mg4sxqg2qng" }
 
 """Escrow: money that can only reach an agent whose passport covers the job.
 
@@ -23,7 +23,8 @@ It is a fixture: small on purpose, and here to be read.
 
 import json
 import typing
-from genlayer import *
+import genlayer as gl
+from genlayer.storage import allow as allow_storage
 
 SETTLE_AFTER_DAYS = 7           # after this, the operator may settle too; the rule of payment is the same
 VALID_DAYS = 30                 # the register's own figure, copied so expiry is checked on this contract's clock too
@@ -125,28 +126,28 @@ class _Payee:
         pass
 
 
-class Escrow(gl.Contract):
-    register: Address
+class Escrow(gl.contract.Contract):
+    register: gl.Address
     agent_id: str
     claim_id: str
-    buyer: Address
-    pool: u256
+    buyer: gl.Address
+    pool: gl.u256
     settled: bool
     outcome_json: str
     funded_at: str          # message clock of the buyer's first funding; the operator's deadline counts from here
-    operator: Address       # the operator the buyer is buying from; the only address this job can pay besides the buyer
+    operator: gl.Address       # the operator the buyer is buying from; the only address this job can pay besides the buyer
     endpoint: str           # the endpoint the buyer is buying from; the row must still carry it
 
     def __init__(self, register: str, agent_id: str, claim_id: str, operator: str, endpoint: str) -> None:
-        self.register = Address(register)
+        self.register = gl.Address(register)
         self.agent_id = agent_id.strip().lower()
         self.claim_id = claim_id.strip().lower()
         self.buyer = gl.message.sender_address
-        self.pool = u256(0)
+        self.pool = gl.u256(0)
         self.settled = False
         self.outcome_json = "{}"
         self.funded_at = ""
-        self.operator = Address(operator)
+        self.operator = gl.Address(operator)
         self.endpoint = endpoint.strip()
 
     @gl.public.write.payable
@@ -155,10 +156,10 @@ class Escrow(gl.Contract):
         payable call is stranded by the chain, so a refusal refunds and says why."""
         value = gl.message.value
         if self.settled:
-            if value > u256(0):
+            if value > gl.u256(0):
                 _Payee(gl.message.sender_address).emit_transfer(value=value)
             return json.dumps({"ok": False, "reason": "this job has already been settled; your funds were returned"})
-        if value == u256(0):
+        if value == gl.u256(0):
             return json.dumps({"ok": False, "reason": "send an amount greater than zero"})
         self.pool = self.pool + value
         # the operator's deadline counts from the buyer's money, so nobody can pre-age a job with a wei of their own
@@ -198,7 +199,7 @@ class Escrow(gl.Contract):
         """
         if self.settled:
             raise gl.vm.UserError("[EXPECTED] this job has already been settled")
-        if self.pool == u256(0):
+        if self.pool == gl.u256(0):
             raise gl.vm.UserError("[EXPECTED] there is nothing in the job")
         holder = self._holder()
         sender = gl.message.sender_address
@@ -215,7 +216,7 @@ class Escrow(gl.Contract):
             payee = self.buyer
             paid = "buyer"
         _Payee(payee).emit_transfer(value=amount)
-        self.pool = u256(0)
+        self.pool = gl.u256(0)
         self.settled = True
         outcome = {"passport": str(holder.get("status")), "valid": bool(holder["valid"]), "bound": bool(holder["covers"]),
                    "paid": paid, "to": payee.as_hex, "amount": str(int(amount)),

@@ -1,4 +1,4 @@
-# { "Depends": "py-genlayer:1jb45aa8ynh2a9c9xn3b7qqh8sm5q93hwfp7jqmwsfhh8jpz09h6" }
+# { "Depends": "py-genlayer:5jycge4q8k23462jtb0b9fyey1s9qz928sz2nbrd9mg4sxqg2qng" }
 
 """Passport: an on-chain record of what an AI agent actually does.
 
@@ -24,7 +24,8 @@ import json
 import typing
 from dataclasses import dataclass
 
-from genlayer import *
+import genlayer as gl
+from genlayer.storage import allow as allow_storage
 
 
 # Errors are classified so validators know how to compare failures.
@@ -275,29 +276,29 @@ class Agent:
     """One registered agent, in scalars only (a DynArray inside a storage
     dataclass kills the VM; measured elsewhere, documented in DECISIONS.md)."""
 
-    operator: Address
+    operator: gl.Address
     endpoint: str
     claims_json: str        # ["family:gpt", "can:code", ...]
     status: str             # unverified | issued | refused | pending
     verdicts_json: str      # {"can:code": "matches", ...} from the last inspection
     reasons_json: str       # {"can:code": "...", ...}
-    inspections: u32
-    issued_seq: u64         # global inspection number at which the passport was issued; 0 if none
+    inspections: gl.u32
+    issued_seq: gl.u64         # global inspection number at which the passport was issued; 0 if none
     refused_key: str        # endpoint + claims that were refused; the same pair cannot be re-inspected
     issued_at: str          # ISO datetime of issue, from the message clock; "" if none
-    last_inspector: Address # who asked for the inspection whose verdicts are stored; ZERO until one happened
-    challenges: u32         # how many times a stranger put the passport to the test
+    last_inspector: gl.Address # who asked for the inspection whose verdicts are stored; ZERO until one happened
+    challenges: gl.u32         # how many times a stranger put the passport to the test
     last_challenge_at: str  # message clock of the last challenge; "" if none
     challenge_json: str     # {"by", "at", "verdicts", "reasons", "outcome"} of the last challenge
 
 
-class Passport(gl.Contract):
-    agents: TreeMap[str, Agent]
-    agent_ids: DynArray[str]
-    inspection_seq: u64
+class Passport(gl.contract.Contract):
+    agents: gl.storage.TreeMap[str, Agent]
+    agent_ids: gl.storage.DynArray[str]
+    inspection_seq: gl.u64
 
     def __init__(self) -> None:
-        self.inspection_seq = u64(0)
+        self.inspection_seq = gl.u64(0)
 
     # ------------------------------------------------------------ registering
 
@@ -319,12 +320,12 @@ class Passport(gl.Contract):
             status=STATUS_UNVERIFIED,
             verdicts_json="{}",
             reasons_json="{}",
-            inspections=u32(0),
-            issued_seq=u64(0),
+            inspections=gl.u32(0),
+            issued_seq=gl.u64(0),
             refused_key="",
             issued_at="",
-            last_inspector=Address(ZERO),
-            challenges=u32(0),
+            last_inspector=gl.Address(ZERO),
+            challenges=gl.u32(0),
             last_challenge_at="",
             challenge_json="{}",
         )
@@ -348,7 +349,7 @@ class Passport(gl.Contract):
         agent.status = STATUS_UNVERIFIED
         agent.verdicts_json = "{}"
         agent.reasons_json = "{}"
-        agent.issued_seq = u64(0)
+        agent.issued_seq = gl.u64(0)
         agent.issued_at = ""
         return json.dumps({"ok": True, "agent": agent_id, "claims": claims, "status": STATUS_UNVERIFIED})
 
@@ -357,7 +358,7 @@ class Passport(gl.Contract):
         """Take an agent off the record. Operator only. The row stays, marked."""
         agent = self._owned(agent_id)
         agent.status = "withdrawn"
-        agent.issued_seq = u64(0)
+        agent.issued_seq = gl.u64(0)
         agent.issued_at = ""
         return json.dumps({"ok": True, "agent": agent_id, "status": "withdrawn"})
 
@@ -383,8 +384,8 @@ class Passport(gl.Contract):
         if agent.status == STATUS_REFUSED and str(agent.refused_key) == key:
             _fail("this endpoint with these claims was already refused; change one of them before asking again")
         verdicts, reasons = self._battery(str(agent.endpoint), claims)
-        self.inspection_seq = u64(int(self.inspection_seq) + 1)
-        agent.inspections = u32(int(agent.inspections) + 1)
+        self.inspection_seq = gl.u64(int(self.inspection_seq) + 1)
+        agent.inspections = gl.u32(int(agent.inspections) + 1)
         agent.last_inspector = gl.message.sender_address
         self._apply(agent, verdicts, reasons, key)
         return json.dumps({"ok": True, "agent": agent_id, "status": str(agent.status),
@@ -414,8 +415,8 @@ class Passport(gl.Contract):
         claims = json.loads(str(agent.claims_json))
         key = str(agent.endpoint) + "|" + str(agent.claims_json)
         verdicts, reasons = self._battery(str(agent.endpoint), claims)
-        self.inspection_seq = u64(int(self.inspection_seq) + 1)
-        agent.challenges = u32(int(agent.challenges) + 1)
+        self.inspection_seq = gl.u64(int(self.inspection_seq) + 1)
+        agent.challenges = gl.u32(int(agent.challenges) + 1)
         agent.last_challenge_at = now
         contradicted = any(v == CONTRADICTS for v in verdicts.values())
         outcome = "refused" if contradicted else "stands"
@@ -481,7 +482,7 @@ class Passport(gl.Contract):
                     return False
             return True
 
-        settled = gl.vm.run_nondet_unsafe(leader_fn, validator_fn)
+        settled = gl.vm.run_nondet(leader_fn, validator_fn)
         verdicts = {c: str(settled.get("verdict:" + c, INCONCLUSIVE)) for c in claims}
         reasons = {c: str(settled.get("reason:" + c, "")) for c in claims}
         return verdicts, reasons
@@ -492,7 +493,7 @@ class Passport(gl.Contract):
         agent.reasons_json = json.dumps(reasons)
         if any(v == CONTRADICTS for v in verdicts.values()):
             agent.status = STATUS_REFUSED
-            agent.issued_seq = u64(0)
+            agent.issued_seq = gl.u64(0)
             agent.issued_at = ""
             agent.refused_key = key
         elif all(v == MATCHES for v in verdicts.values()):
@@ -502,7 +503,7 @@ class Passport(gl.Contract):
             agent.refused_key = ""
         else:
             agent.status = STATUS_PENDING
-            agent.issued_seq = u64(0)
+            agent.issued_seq = gl.u64(0)
             agent.issued_at = ""
 
     # ----------------------------------------------------------------- views

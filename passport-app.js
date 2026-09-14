@@ -1,14 +1,18 @@
-import { createClient } from "https://esm.sh/genlayer-js@1.1.8";
-import { studionet } from "https://esm.sh/genlayer-js@1.1.8/chains";
+import { createClient } from "https://esm.sh/genlayer-js@2.0.0-rc.1";
+import { studioDevnet } from "https://esm.sh/genlayer-js@2.0.0-rc.1/chains";
 
+/* Studio Next: consensus v0.6, chain 61997, every write carries a quoted fee. The SDK's
+   studioDevnet definition is the same chain; only the RPC host differs. */
 const $ = (id) => document.getElementById(id);
-const RPC = "https://studio.genlayer.com/api";
-const EXPLORER = "https://explorer-studio.genlayer.com";
-const CHAIN = { chainId: "0xf22f", chainName: "GenLayer Studio", nativeCurrency: { name: "GEN", symbol: "GEN", decimals: 18 }, rpcUrls: [RPC], blockExplorerUrls: [EXPLORER + "/"] };
+const RPC = "https://studio-next.genlayer.com/api";
+const EXPLORER = "https://explorer-studio-dev.genlayer.com";
+const NETWORK = { ...studioDevnet, rpcUrls: { default: { http: [RPC] } } };
+const CHAIN = { chainId: "0xf22d", chainName: "GenLayer Studio Next", nativeCurrency: { name: "GEN", symbol: "GEN", decimals: 18 }, rpcUrls: [RPC], blockExplorerUrls: [EXPLORER + "/"] };
 const CLAIMS = ["family:gpt", "family:claude", "family:gemini", "family:llama", "family:mistral", "family:other",
                 "can:code", "can:translate", "can:summarize", "can:math", "safe:injection"];
-// The register deployed from the author's wallet on 12 September 2026 (see the README's evidence table). Empty would mean "none yet".
-const DEMO_REGISTER = "0x22Fd3B3FbeBdf2176C426B6D76BBcE2936362dDF";
+// The register on Studio Next. Until the author's wallet redeploys there, this is a test register
+// deployed from a throwaway account on 14 September 2026; it is not evidence. Empty would mean "none yet".
+const DEMO_REGISTER = "0x1Bd9DA3d32DEe5437F4aA056e3537beD2b6242B7";
 // The six demo agents are served by this same site (api/agent.js on Vercel, tools/serve-agents.mjs locally).
 const DEMO_BASE = location.origin + "/api/agent";
 const DEMO = {
@@ -42,8 +46,16 @@ async function ensureNet(p) {
   try { await p.request({ method: "wallet_switchEthereumChain", params: [{ chainId: CHAIN.chainId }] }); }
   catch (e) { if (e && (e.code === 4902 || String(e.message || "").includes("Unrecognized"))) await p.request({ method: "wallet_addEthereumChain", params: [CHAIN] }); else throw e; }
 }
-async function client() { await ensureNet(provider); const a = await provider.request({ method: "eth_accounts" }); account = a[0]; return createClient({ chain: studionet, account }); }
-const reader = () => createClient({ chain: studionet });
+async function client() { await ensureNet(provider); const a = await provider.request({ method: "eth_accounts" }); account = a[0]; return createClient({ chain: NETWORK, account }); }
+const reader = () => createClient({ chain: NETWORK });
+/* Every write on Studio Next carries a fee quote. The SDK simulates the call first and
+   quotes what it saw; a call the contract refuses cannot be simulated, so the default
+   quote is used and the refusal lands on chain with its reason. Unused fee is refunded. */
+async function feesFor(c, fn, args, target) {
+  if (target) target.textContent = "quoting the fee: the validators' work is simulated first …";
+  try { const e = await c.estimateTransactionFeesForWrite({ address: reg, functionName: fn, args }); return { distribution: e.distribution, messageAllocations: e.messageAllocations, feeValue: e.feeValue }; }
+  catch (e) { const d = await c.estimateTransactionFees({}); return { distribution: d.distribution, feeValue: d.feeValue }; }
+}
 function said(msg) { log(esc(msg), "warn"); if ($("railHint")) $("railHint").innerHTML = warn(msg); }
 async function connect() {
   provider = (provs[0] || {}).provider || window.ethereum;
@@ -60,7 +72,7 @@ $("faucet").onclick = async () => {
 
 /* The order of things, shown at the top of the page: what is done, what is next. */
 const HINTS = {
-  1: "Press Connect wallet, top right: Rabby or any EIP-6963 wallet, on GenLayer Studio. Then Get test GEN, it is free.",
+  1: "Press Connect wallet, top right: Rabby or any EIP-6963 wallet. The wallet is asked to add GenLayer Studio Next (chain 61997). Then Get test GEN, it is free.",
   2: DEMO_REGISTER ? "Press \"load the demo register\" in section 03, or paste any Passport register, or deploy your own."
                    : "Paste a Passport register in section 03, or deploy your own from there (one signature).",
   3: "In section 04 press one of the six \"try\" chips, then Register. One signature; the agent is on the record, unverified.",
@@ -170,8 +182,8 @@ async function wait(tx, label, target) {
   for (let i = 0; i < 100; i++) {
     await new Promise((r) => setTimeout(r, 4000));
     const t = await rpc("eth_getTransactionByHash", [tx]);
-    if (t?.status === "CANCELED") { log("  ✗ " + label + " was cancelled by the network", "warn"); return null; }
-    if (t?.status === "FINALIZED") {
+    if (t?.status === "CANCELED" || t?.status === "UNDETERMINED") { log("  ✗ " + label + " ended " + String(t.status).toLowerCase() + " on the network", "warn"); return null; }
+    if (t?.status === "ACCEPTED" || t?.status === "FINALIZED") {
       const lr = t.consensus_data?.leader_receipt, one = Array.isArray(lr) ? lr[0] : lr;
       let msg = ""; try { msg = new TextDecoder().decode(Uint8Array.from(atob(one.result), (c) => c.charCodeAt(0))).replace(/[^\x20-\x7e]/g, " ").trim(); } catch (e) {}
       let a = 0, d = 0, idl = 0; for (const k in (t.consensus_data?.votes || {})) { const v = t.consensus_data.votes[k]; if (v === "agree") a++; else if (v === "disagree") d++; else idl++; }
@@ -186,9 +198,10 @@ async function wait(tx, label, target) {
 }
 async function send(fn, args, label, target) {
   const c = await client();
-  log(`▶ ${label} … confirm in wallet`);
+  const fees = await feesFor(c, fn, args, target);
+  log(`▶ ${label} … confirm in wallet (fee quoted: ${(Number(fees.feeValue) / 1e18).toFixed(4)} GEN, the unused part comes back)`);
   let tx;
-  try { tx = await c.writeContract({ address: reg, functionName: fn, args }); }
+  try { tx = await c.writeContract({ address: reg, functionName: fn, args, fees }); }
   catch (e) { log("  ✗ " + esc(label + ": " + (e.code === 4001 ? "refused in the wallet" : (e.message || e))), "warn"); throw e; }
   log("  tx " + tx + " · " + link("/tx/" + tx, "explorer"));
   return await wait(tx, label, target);
@@ -202,10 +215,11 @@ $("deploy").onclick = async () => {
     if (!got.ok) throw new Error("could not read contracts/passport.py from this host");
     const src = await got.text();
     const c = await client();
+    const d = await c.estimateTransactionFees({});
     log("▶ deploying a register … confirm in wallet");
-    const h = await c.deployContract({ code: src, args: [] });
+    const h = await c.deployContract({ code: src, args: [], fees: { distribution: d.distribution, feeValue: d.feeValue } });
     log("  tx " + h + " · " + link("/tx/" + h, "explorer"));
-    const r = await c.waitForTransactionReceipt({ hash: h, status: "ACCEPTED", retries: 60, interval: 4000 }).catch(() => null);
+    const r = await c.waitForTransactionReceipt({ hash: h, waitUntil: "decided", retries: 60, interval: 4000, fullTransaction: true }).catch(() => null);
     const A = r?.data?.contract_address; if (!A) throw new Error("the deploy produced no address");
     log("  ✓ deployed at " + A); await useRegister(A);
   } catch (e) { log("  ✗ " + esc(e.message || e), "warn"); }
