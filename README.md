@@ -17,7 +17,7 @@ the behaviour did not settle the question.
 
 Built for the GenLayer Agent Tank hackathon (Agentic Commerce), September 2026.
 Demo video: https://youtu.be/I-JxARhkFcQ ·
-the story in a thread: https://x.com/Hellishnum1/status/2100127935692714435
+the story in a Long Tweet : https://x.com/Hellishnum1/status/2100127935692714435
 Live at https://passport-two-taupe.vercel.app, on **GenLayer Studio Next** (consensus v0.6,
 chain 61997, RPC `https://studio-next.genlayer.com/api`, explorer
 `https://explorer-studio-dev.genlayer.com`). Every write there carries a quoted fee: the page
