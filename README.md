@@ -117,13 +117,29 @@ first funded, the operator may settle too, under the same rule, so a buyer canno
 finished job forever. A register that cannot be read refunds the buyer rather than locking
 the job, and expiry is checked on the escrow's own clock as well as the register's.
 
-Measured on Studio Next (14 September 2026): every decision of the escrow settles as
-designed (`would_pay`, the payee choice, the refunds, a squatter never paid) and the
-release records a pending transfer to the payee, but the network did not execute that
-child message after finalization, with either transfer API the v0.6 runtime offers. The
-money moving is measured on Studio (chain 61999), where the same escrow paid 12 GEN to
-the operator and refunded the buyer, 16 checks of 16. The escrow is a fixture; the
-register, which the page calls, does not send value.
+Measured on Studio Next again on 16 September 2026, and the result is worth stating
+precisely because it is not what it first looks like. **Every decision the escrow makes
+settles correctly on chain**: `would_pay` reads the register with no model and no
+consensus, a job for a refused passport refunds the buyer, a job bound to a squatter's
+address refunds the buyer and pays the squatter nothing, a stranger cannot settle, and
+those settlements are recorded with their outcome.
+
+**What fails is the payout message, and it fails in the fee layer, not in the contract.**
+A release that pays the operator comes back `fee no_matching_allocation`: Studio Next's
+fee model wants the transaction to carry an allocation for the child message before the
+contract may emit it. The SDK is supposed to compute that allocation by simulating the
+call, and for this call the simulation itself throws
+(`Do not know how to serialize a BigInt`, genlayer-js 2.0.0-rc.1), so the fee falls back
+to a default preset that carries no allocation. Building the allocation by hand gets past
+the consensus contract's validation (`InvalidFeeParams`, then
+`MessageAllocationsNotEqualBudget`, both resolvable) but GenVM still reports no matching
+allocation, so there is no reliable way to construct it from outside while the simulation
+is broken.
+
+The same escrow source moved real money on Studio (chain 61999): 12 GEN to the operator
+the buyer bound to, refunds to the buyer, 16 checks of 16. The logic is the same on both
+networks; the fee model is not. The escrow is a fixture in this repository, exercised by
+`tests/on_chain/escrow.mjs`; the register, which the page calls, never sends value.
 
 **A name is a handle, not authority.** `register` is first come first served, and a row
 is a wallet-signed assertion about an endpoint. A consumer that moves value must know the
