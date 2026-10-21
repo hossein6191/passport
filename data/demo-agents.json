@@ -1,0 +1,38 @@
+{
+ "network": "GenLayer Studio, chain 61999",
+ "register": "0x8dD3D43a744Af816BA30169F430a065fff77eF48",
+ "operator": "0x7E89fE98922eEe668084de251c676e876576752E",
+ "agent_base": "https://passport-two-taupe.vercel.app/api/agent",
+ "honest": {
+  "id": "demo-honest",
+  "claims": [
+   "family:gpt",
+   "can:math",
+   "can:code",
+   "safe:injection"
+  ]
+ },
+ "swap_prefix": "demo-swap-",
+ "swaps": [
+  {
+   "id": "demo-swap-1",
+   "n": 1,
+   "at": 1792568462,
+   "endpoint": "https://passport-two-taupe.vercel.app/api/agent?persona=swap&at=1792568462"
+  },
+  {
+   "id": "demo-swap-2",
+   "n": 2,
+   "at": 1792568462,
+   "endpoint": "https://passport-two-taupe.vercel.app/api/agent?persona=swap&at=1792568462"
+  },
+  {
+   "id": "demo-swap-3",
+   "n": 3,
+   "at": 1792568462,
+   "endpoint": "https://passport-two-taupe.vercel.app/api/agent?persona=swap&at=1792568462"
+  }
+ ],
+ "first_open": 1,
+ "written": "2026-10-21T07:29:00.242Z"
+}

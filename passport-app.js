@@ -13,10 +13,10 @@ const NETWORK = { ...studionet, rpcUrls: { default: { http: [RPC] } }, blockExpl
 const CHAIN = { chainId: "0xf22f", chainName: "GenLayer Studio", nativeCurrency: { name: "GEN", symbol: "GEN", decimals: 18 }, rpcUrls: [RPC], blockExplorerUrls: [EXPLORER + "/"] };
 const CLAIMS = ["family:gpt", "family:claude", "family:gemini", "family:llama", "family:mistral", "family:other",
                 "can:code", "can:translate", "can:summarize", "can:math", "safe:injection"];
-// The version 2 register on Studio, deployed from the author's wallet. Fill it in after deploying and running
-// tools/open-demo-agents.mjs (README, "The site"). While it is empty the page says the version 2 register is
-// not deployed yet and offers to deploy one from the visitor's own wallet.
-const DEMO_REGISTER = "";
+// The version 2 register on Studio: the one the evidence run in the README deployed, on which
+// tools/open-demo-agents.mjs registered the demo agents (README, "The site"). While it is empty the page says the
+// version 2 register is not deployed yet and offers to deploy one from the visitor's own wallet.
+const DEMO_REGISTER = "0x8dD3D43a744Af816BA30169F430a065fff77eF48";
 // Written by tools/open-demo-agents.mjs: the register, the demo operator's address, the honest demo agent and
 // the swap agents. The page trusts a demo row only when its operator is the one this file names.
 const DEMO_FILE = "./data/demo-agents.json";

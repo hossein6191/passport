@@ -371,7 +371,47 @@ name on the register is a handle, not authority.
 
 ## Evidence for version 2
 
-The on-chain run is recorded here once it has run.
+Run on 21 October 2026 on GenLayer Studio (chain 61999) by `tests/on_chain/smoke.mjs`, from generated accounts funded from the
+Studio faucet, none of them anybody's wallet: **OPERATOR** registers and stakes, **BUYER** funds escrow jobs, **CHALLENGER** challenges, **STRANGER** tries what it may not; the demo agents answered from https://passport-two-taupe.vercel.app/api/agent. **49 passed, 0 failed**; transactions: 29 in 29 steps; sent a second time: none.
+The whole log is `tests/on_chain/smoke-run.log`. An honest passport survived a challenge (the 0.2 GEN bond went to the operator); an agent whose model was swapped after it was issued was caught by a challenge, revoked, and its 2 GEN stake slashed with 1 GEN paid to the challenger in that transaction; the escrow job on it refunded the buyer 3 GEN, and the job on the honest agent paid its operator 2 GEN on chain, the payout that failed on Studio Next.
+
+- `passport.py` deployed at [`0x8dD3D43a744Af816BA30169F430a065fff77eF48`](https://explorer-studio.genlayer.com/address/0x8dD3D43a744Af816BA30169F430a065fff77eF48)
+- `escrow.py` deployed at [`0x795Eb942DeB6f39f8768a09B41d77Cacf5B6A14b`](https://explorer-studio.genlayer.com/address/0x795Eb942DeB6f39f8768a09B41d77Cacf5B6A14b)
+- `escrow.py` deployed at [`0xFce22796a699EB4D8D2aa29A5aea1E0b5Eddebc2`](https://explorer-studio.genlayer.com/address/0xFce22796a699EB4D8D2aa29A5aea1E0b5Eddebc2)
+
+- the code deployed at 0x8dD3D43a744Af816BA30169F430a065fff77eF48 is byte for byte contracts/passport.py: 68702 bytes, sha256 8ee34b05f811c613fc2410d9f3979995b306f8694fd2584536afd2502e24e4f7
+- the code deployed at 0x795Eb942DeB6f39f8768a09B41d77Cacf5B6A14b is byte for byte contracts/fixtures/escrow.py: 13722 bytes, sha256 717e34d5278c1574a9ecaaa2a93306e881e42b74f9dd992e7003bf159ce715b9
+- the code deployed at 0xFce22796a699EB4D8D2aa29A5aea1E0b5Eddebc2 is byte for byte contracts/fixtures/escrow.py: 13722 bytes, sha256 717e34d5278c1574a9ecaaa2a93306e881e42b74f9dd992e7003bf159ce715b9
+
+| step | by | transactions | votes |
+|---|---|---|---|
+| the register is deployed | OPERATOR | [0x7b26392e…](https://explorer-studio.genlayer.com/tx/0x7b26392e7c9b6030888bd038252228bd7e2f017ee18e957f77348d78756d1c5a) | 3 agree, 0 disagree, 2 idle |
+| a claim outside the closed set is refused before any validator is asked, and the 0.5 GEN comes back in the same transaction | OPERATOR | [0x7d833008…](https://explorer-studio.genlayer.com/tx/0x7d833008960a3e3d43571382be97841ed0f9ddf4a002cedae8c340d158e9de03) | 3 agree, 0 disagree, 2 idle |
+| a registration that sends 1 GEN for four claims is refused and refunded: the stake is 0.5 GEN a claim | OPERATOR | [0xd10a6d66…](https://explorer-studio.genlayer.com/tx/0xd10a6d665dbf2b11cad0912c87adb98d6f8c9c2a7ad69036d684e9a47a562c15) | 5 agree, 0 disagree, 0 idle |
+| honest registers four claims with 2 GEN of stake, unverified | OPERATOR | [0x32f265c8…](https://explorer-studio.genlayer.com/tx/0x32f265c84a07f8a9448089c390914fd93f75f5efdc36a1be167edb164207d3ae) | 5 agree, 0 disagree, 0 idle |
+| a stranger cannot update honest's endpoint | STRANGER | [0xe358b70a…](https://explorer-studio.genlayer.com/tx/0xe358b70ab5e276098ddb079588ad0c8e5fe0cbcdf60e2798cfecc7ac2812764c) | 5 agree, 0 disagree, 0 idle |
+| the operator adds a fifth claim with exactly the 0.5 GEN it lacks | OPERATOR | [0xdebb0fee…](https://explorer-studio.genlayer.com/tx/0xdebb0feeb69d1d5029d1fa49eef2c2353c57a0c9c32b1241412dd6763cbf7f7d) | 4 agree, 0 disagree, 1 idle |
+| and removes it again: the excess 0.5 GEN comes back in the same transaction | OPERATOR | [0xfa119b81…](https://explorer-studio.genlayer.com/tx/0xfa119b81aff09f9c3984131637266a6e83a3db91ffd3a8e8b6a30aad3153abea) | 3 agree, 0 disagree, 2 idle |
+| the challenger deposits 0.5 GEN of credit | CHALLENGER | [0x801624c1…](https://explorer-studio.genlayer.com/tx/0x801624c1fa041d17bf7176b38e5a34f8fb142992e869f469368961f8a0b6983a) | 5 agree, 0 disagree, 0 idle |
+| the operator inspects honest and the validators agree: issued | OPERATOR | [0xbb390717…](https://explorer-studio.genlayer.com/tx/0xbb390717fba3bbd0a7c16e60d5f33f6f9cff73509da1fe2741075acef837d811) | 3 agree, 0 disagree, 2 idle |
+| a stranger with no credit cannot challenge: the bond comes from deposit() | STRANGER | [0xbe6d02b2…](https://explorer-studio.genlayer.com/tx/0xbe6d02b26def51ff2f7178ae50fa2d0ad85727319c9f9e22391962e9c58d7f0a) | 4 agree, 0 disagree, 1 idle |
+| the operator cannot challenge its own passport | OPERATOR | [0x92fef9a5…](https://explorer-studio.genlayer.com/tx/0x92fef9a58f179acde81a032154b59902909b27c465a629813812197beb178b62) | 4 agree, 0 disagree, 1 idle |
+| the challenger challenges honest: every claim holds, the passport stands | CHALLENGER | [0x58306450…](https://explorer-studio.genlayer.com/tx/0x58306450ea937bdbfc48bc5458fee09e33963eec1f77e2ef8150ab555189fee0) | 3 agree, 0 disagree, 2 idle |
+| the same challenger cannot challenge honest again inside the ten-minute cooldown | CHALLENGER | [0xf6eca63c…](https://explorer-studio.genlayer.com/tx/0xf6eca63c85a6539bf021db00b6ae9e8d094a82b76c6b367f57c6cefed285701f) | 3 agree, 0 disagree, 2 idle |
+| swap registers the same four claims with 2 GEN of stake | OPERATOR | [0xb2232be8…](https://explorer-studio.genlayer.com/tx/0xb2232be8c6a89e5004fa1e3eb6b30aa14aa6f4b2cfd9d3b2832d64f56c6e5266) | 5 agree, 0 disagree, 0 idle |
+| swap is inspected before its moment and issued, like honest | OPERATOR | [0x8b678d64…](https://explorer-studio.genlayer.com/tx/0x8b678d64617fb1518e5be3edb0ee27d5ef430ca17f1c0a511b9464adca58b243) | 3 agree, 0 disagree, 2 idle |
+| drift registers the same four claims with 2 GEN, at an endpoint that will stop saying who made it | OPERATOR | [0x4710161c…](https://explorer-studio.genlayer.com/tx/0x4710161c0c8e6b4c85dd4963ae43fc47648d892db860725debb45c8334c36a02) | 3 agree, 0 disagree, 2 idle |
+| drift is inspected before its moment and issued, like honest | OPERATOR | [0x84409211…](https://explorer-studio.genlayer.com/tx/0x844092116a9d82609ac6506c09096317970bc2499caff2d984082a3a3263ea7f) | 3 agree, 0 disagree, 2 idle |
+| the buyer funds a 3 GEN job on swap, bound to its operator and endpoint | BUYER | [0x114e3a25…](https://explorer-studio.genlayer.com/tx/0x114e3a25595f65868532ee56ce02ecc6ab49274d74b73404acd8d11847dae7f2), [0x785ff3e0…](https://explorer-studio.genlayer.com/tx/0x785ff3e0a8222f2223bc7862cdb37f6a89b3323670278eae293844eee9d3b7b5) | 3 agree, 0 disagree, 2 idle |
+| and a 2 GEN job on honest | BUYER | [0xfa5bf590…](https://explorer-studio.genlayer.com/tx/0xfa5bf59001d300d0b3bccf8656a8dd82205c1416275ce50ff6a48ca86040d0ad), [0x92317bba…](https://explorer-studio.genlayer.com/tx/0x92317bba2e44d04cd5b410a5f40f385456b9d045be9197d3ef2b0dc389f064b7) | 3 agree, 0 disagree, 2 idle |
+| the challenger challenges swap and the validators agree: revoked | CHALLENGER | [0xd94728be…](https://explorer-studio.genlayer.com/tx/0xd94728becc2237f54e1ed92294abf1b51799421816250dba45397dae0b83494d) | 3 agree, 0 disagree, 2 idle |
+| the challenger challenges drift: it no longer says who made it, which settles nothing, and the passport stands | CHALLENGER | [0xdd86269d…](https://explorer-studio.genlayer.com/tx/0xdd86269dde346757aa4d2606a81e200728829b04833a50e301d7c83e884272e2) | 3 agree, 0 disagree, 2 idle |
+| the operator cannot inspect the refused pair again | OPERATOR | [0xb46fe65d…](https://explorer-studio.genlayer.com/tx/0xb46fe65df67d3452557da1c7fc97c57c4c03915536697b6b9ed80e13a517b883) | 3 agree, 0 disagree, 2 idle |
+| the job on the revoked passport settles: the buyer gets the 3 GEN back | BUYER | [0xbe664669…](https://explorer-studio.genlayer.com/tx/0xbe6646691e7fc83c13e08170ebdb9ed4f7df9718ef6345854f22d56e82520f0c) | 3 agree, 0 disagree, 2 idle |
+| the job on honest settles: the operator is paid 2 GEN, and the value moves on chain | BUYER | [0x7eeab4ff…](https://explorer-studio.genlayer.com/tx/0x7eeab4ffb0c98cec5f5bc271f2b331aeefacdc033df2b738b7a2eba4f67f0cec) | 3 agree, 0 disagree, 2 idle |
+| the operator retires honest; it stays in force through a one-day hold | OPERATOR | [0x2d856e02…](https://explorer-studio.genlayer.com/tx/0x2d856e02afc3207f65aac2586a4bb6d83cdf051ec3902daaf775300e82d1d7cd) | 3 agree, 0 disagree, 2 idle |
+| unstake is refused until the hold ends: a challenge can still reach the stake | OPERATOR | [0x6da3cca0…](https://explorer-studio.genlayer.com/tx/0x6da3cca006c1236207d7189e9eb181ff766e88c32ddc185a3af6fef128d96d02) | 3 agree, 0 disagree, 2 idle |
+| the challenger takes back its credit: 0.2 GEN, the 0.5 it put in less the bond and the fee paid to the operator | CHALLENGER | [0xd6e23813…](https://explorer-studio.genlayer.com/tx/0xd6e23813d104b2312ca7da4086824b9dff71393bb86877395f0659953412a120) | 5 agree, 0 disagree, 0 idle |
 
 ## Evidence for version 1 (Studio Next, September 2026)
 
