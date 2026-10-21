@@ -1,18 +1,20 @@
-# { "Depends": "py-genlayer:5jycge4q8k23462jtb0b9fyey1s9qz928sz2nbrd9mg4sxqg2qng" }
+# { "Depends": "py-genlayer:1jb45aa8ynh2a9c9xn3b7qqh8sm5q93hwfp7jqmwsfhh8jpz09h6" }
 
 """Escrow: money that can only reach an agent whose passport covers the job.
 
 A buyer funds a job for one agent and one claim, and names the operator
 address and the endpoint it is buying from. When the job is settled, the
 escrow asks the Passport register, an ordinary synchronous view with no
-model and no consensus, whether that agent holds an issued passport covering
+model and no consensus, whether that agent holds a passport in force covering
 that claim, and reads the row to check that it is still the row the buyer
-bound to: the same operator, the same endpoint. If everything holds, the
-named operator is paid. If the passport was refused, withdrawn or never
-issued, or the name now belongs to somebody else, or the endpoint changed,
-the buyer takes the money back instead. There is no path through this
-contract that pays an agent without a passport, and none that pays whoever
-happened to register a name first.
+bound to: the same operator, the same endpoint, and no revoke since the buyer
+first funded the job. If everything holds, the named operator is paid. If the
+passport was refused, revoked (even if it was issued again later), suspended,
+retired past its hold or never issued, or the name now belongs to somebody
+else, or the endpoint changed, the buyer takes the money back instead. There
+is no path through this contract that pays an agent without a passport, none
+that pays for a job run while the passport was revoked, and none that pays
+whoever happened to register a name first.
 
 A name on the register is a handle, first come first served; it carries no
 authority. Whoever pays must know the operator independently and say so
@@ -23,26 +25,24 @@ It is a fixture: small on purpose, and here to be read.
 
 import json
 import typing
-import genlayer as gl
-from genlayer.storage import allow as allow_storage
+from genlayer import *
 
 SETTLE_AFTER_DAYS = 7           # after this, the operator may settle too; the rule of payment is the same
 VALID_DAYS = 30                 # the register's own figure, copied so expiry is checked on this contract's clock too
+RETIRE_HOLD_SECONDS = 86400     # the register's own figure, copied so a retired passport lapses on this clock too
 
 
 def _now() -> str:
     """The one clock validators agree on: the message's own datetime.
 
-    Measured: `gl.message.datetime` is an ISO string identical on every node
-    for a transaction (GenVM v0.6; older runtimes carried it in
-    `gl.message_raw`). There is no block timestamp. "" when the clock is not
-    there, and then expiry is simply not enforced rather than guessed.
+    Measured: `gl.message_raw["datetime"]` is identical on every node for a
+    transaction, and present for a read too. There is no block timestamp. ""
+    when the clock is not there, and then expiry is simply not enforced rather
+    than guessed.
     """
     try:
-        value = getattr(gl.message, "datetime", None)
-        if not value:
-            raw = getattr(gl.message, "raw", None)
-            value = raw.get("datetime") if hasattr(raw, "get") else None
+        raw = gl.message_raw
+        value = raw.get("datetime") if hasattr(raw, "get") else None
         return str(value) if value else ""
     except Exception:
         return ""
@@ -62,7 +62,10 @@ def _instant_seconds(iso: str) -> int:
         elif s.endswith("+00:00"):
             s = s[:-6]
         date_part, _, time_part = s.partition("T")
-        y, m, d = (int(x) for x in date_part.split("-"))
+        ymd = date_part.split("-")
+        if len(ymd) != 3:
+            return -1
+        y, m, d = int(ymd[0]), int(ymd[1]), int(ymd[2])
         parts = (time_part.split(":") + ["0", "0", "0"])[:3]
         hour, minute, second = int(parts[0] or "0"), int(parts[1] or "0"), int(parts[2].split(".")[0] or "0")
         if not (1 <= m <= 12 and 1 <= d <= 31 and 0 <= hour < 24 and 0 <= minute < 60 and 0 <= second < 60):
@@ -95,6 +98,20 @@ def _expired(issued_at: str, now: str) -> bool:
     return days < 0 or days >= VALID_DAYS
 
 
+def _hold_over(retired_at: str, now: str) -> bool:
+    """Whether the hold that follows retire has run its length.
+
+    Not retired, or no readable clock, means the hold has not ended: a missing
+    clock never ends a passport early nor hands a stake back early.
+    """
+    if not retired_at or not now:
+        return False
+    a, b = _instant_seconds(retired_at), _instant_seconds(now)
+    if a < 0 or b < 0:
+        return False
+    return b - a >= RETIRE_HOLD_SECONDS
+
+
 def _may_settle(caller_is_buyer: bool, caller_is_operator: bool, funded_at: str, now: str) -> bool:
     """The buyer may settle at any time; the operator once the job is SETTLE_AFTER_DAYS old,
     counted from the buyer's first funding.
@@ -109,6 +126,23 @@ def _may_settle(caller_is_buyer: bool, caller_is_operator: bool, funded_at: str,
     return days is not None and days >= SETTLE_AFTER_DAYS
 
 
+def _slash_mark(record: typing.Any) -> str:
+    """How much the register has ever slashed from this agent, as its row says; "" when the row does not say."""
+    value = str(record.get("slashed", "")) if isinstance(record, dict) else ""
+    return value if value.isdigit() else ""
+
+
+def _unrevoked(mark_then: str, mark_now: str) -> bool:
+    """No revoke since the buyer first funded: the slash count on the row is the one read then.
+
+    A passport revoked during the job and issued again later reads as valid,
+    but its slash count has grown, so the job does not pay for work run on the
+    revoked passport. A count never read (the register could not be read at
+    funding) binds to nothing, and the buyer is refunded.
+    """
+    return bool(mark_then) and mark_then == mark_now
+
+
 def _covers(valid: bool, row_operator: str, row_endpoint: str, operator: str, endpoint: str) -> bool:
     """The job pays only when the passport is valid AND the row under the name is
     the one the buyer bound to: the operator address and the endpoint the buyer
@@ -120,86 +154,110 @@ def _covers(valid: bool, row_operator: str, row_endpoint: str, operator: str, en
     return str(row_operator).lower() == str(operator).lower() and str(row_endpoint).strip() == str(endpoint).strip()
 
 
-def _pay(address: typing.Any, amount: typing.Any) -> None:
-    """Send value to any address. GenVM v0.6 reaches an account through the same
-    proxy as a contract: `gl.contract.get_at(address).emit_transfer(value=...)`."""
-    gl.contract.get_at(address).emit_transfer(value=amount)
+@gl.evm.contract_interface
+class _Payee:
+    class View:
+        pass
+
+    class Write:
+        pass
 
 
-class Escrow(gl.contract.Contract):
-    register: gl.Address
+class Escrow(gl.Contract):
+    register: Address
     agent_id: str
     claim_id: str
-    buyer: gl.Address
-    pool: gl.u256
+    buyer: Address
+    pool: u256
     settled: bool
     outcome_json: str
     funded_at: str          # message clock of the buyer's first funding; the operator's deadline counts from here
-    operator: gl.Address       # the operator the buyer is buying from; the only address this job can pay besides the buyer
+    operator: Address       # the operator the buyer is buying from; the only address this job can pay besides the buyer
     endpoint: str           # the endpoint the buyer is buying from; the row must still carry it
+    funded_mark: str        # the row's slash count at the buyer's first funding; a revoke since then refunds
 
     def __init__(self, register: str, agent_id: str, claim_id: str, operator: str, endpoint: str) -> None:
-        self.register = gl.Address(register)
+        self.register = Address(register)
         self.agent_id = agent_id.strip().lower()
         self.claim_id = claim_id.strip().lower()
         self.buyer = gl.message.sender_address
-        self.pool = gl.u256(0)
+        self.pool = u256(0)
         self.settled = False
         self.outcome_json = "{}"
         self.funded_at = ""
-        self.operator = gl.Address(operator)
+        self.operator = Address(operator)
         self.endpoint = endpoint.strip()
+        self.funded_mark = ""
 
     @gl.public.write.payable
     def fund(self) -> str:
-        """Add to the job. Anybody may. Never raises: value sent to a refused
-        payable call is stranded by the chain, so a refusal refunds and says why."""
+        """Add to the job. Deliberately open to anyone; the sender check only decides whose money starts the clock.
+
+        Never raises: value sent to a refused payable call is stranded by the
+        chain, so a refusal refunds and says why.
+        """
         value = gl.message.value
         if self.settled:
-            if value > gl.u256(0):
-                _pay(gl.message.sender_address, value)
+            if value > u256(0):
+                _Payee(gl.message.sender_address).emit_transfer(value=value)
             return json.dumps({"ok": False, "reason": "this job has already been settled; your funds were returned"})
-        if value == gl.u256(0):
+        if value == u256(0):
             return json.dumps({"ok": False, "reason": "send an amount greater than zero"})
-        self.pool = self.pool + value
+        self.pool = u256(int(self.pool) + int(value))
         # the operator's deadline counts from the buyer's money, so nobody can pre-age a job with a wei of their own
         if not self.funded_at and gl.message.sender_address == self.buyer:
             self.funded_at = _now()
-        return json.dumps({"ok": True, "pool": str(int(self.pool))})
+        # the revoke count the job binds to is read with the buyer's money too, and again until it could be read
+        if not self.funded_mark and gl.message.sender_address == self.buyer:
+            self.funded_mark = self._read_mark()
+        return json.dumps({"ok": True, "pool": str(int(self.pool)), "slashed_at_funding": str(self.funded_mark)})
+
+    def _read_mark(self) -> str:
+        """The register's slash count for the agent now, or "" if it cannot be read. Never raises: fund uses it."""
+        try:
+            register = gl.get_contract_at(self.register)
+            return _slash_mark(json.loads(str(register.view().passport(str(self.agent_id)))))
+        except Exception:
+            return ""
 
     def _holder(self) -> dict:
         """What the register says about the job, read on this contract's own clock.
 
         A register that cannot be read (a wrong address, a bad minute) is treated
         as a passport that does not cover the job: the buyer is refunded, never
-        locked out. Expiry is checked here as well as in the register, so it
-        does not depend on what clock the nested call happens to see.
+        locked out. Expiry and the hold after retire are checked here as well as
+        in the register, so they do not depend on what clock the nested call
+        happens to see.
         """
         try:
-            register = gl.contract.get_at(self.register)
+            register = gl.get_contract_at(self.register)
             valid = bool(register.view().is_valid(str(self.agent_id), str(self.claim_id)))
             record = json.loads(str(register.view().passport(str(self.agent_id))))
         except Exception:
-            return {"valid": False, "covers": False, "status": "unreadable", "row_operator": "", "row_endpoint": ""}
+            return {"valid": False, "covers": False, "status": "unreadable", "row_operator": "", "row_endpoint": "",
+                    "unrevoked": False}
         row_operator = str(record.get("operator") or "")
         row_endpoint = str(record.get("endpoint") or "")
-        alive = valid and not _expired(str(record.get("issued_at") or ""), _now())
+        now = _now()
+        unrevoked = _unrevoked(str(self.funded_mark), _slash_mark(record))
+        alive = (valid and unrevoked and not _expired(str(record.get("issued_at") or ""), now)
+                 and not _hold_over(str(record.get("retired_at") or ""), now))
         covers = _covers(alive, row_operator, row_endpoint, self.operator.as_hex, str(self.endpoint))
         return {"valid": valid, "covers": covers, "status": record.get("status"),
-                "row_operator": row_operator, "row_endpoint": row_endpoint}
+                "row_operator": row_operator, "row_endpoint": row_endpoint, "unrevoked": unrevoked}
 
     @gl.public.write
     def release(self) -> str:
         """Pay the named operator if the passport covers the claim and the row is
         the one the buyer bound to; otherwise refund the buyer.
 
-        The buyer may settle at any time. The operator may settle once the job
-        is SETTLE_AFTER_DAYS old, so a buyer cannot sit on a finished job
-        forever, and the rule of payment is the same whoever calls.
+        The sender check: the buyer may settle at any time, the operator once the
+        job is SETTLE_AFTER_DAYS old, and nobody else. The rule of payment is the
+        same whoever calls, so a buyer cannot sit on a finished job forever.
         """
         if self.settled:
             raise gl.vm.UserError("[EXPECTED] this job has already been settled")
-        if self.pool == gl.u256(0):
+        if self.pool == u256(0):
             raise gl.vm.UserError("[EXPECTED] there is nothing in the job")
         holder = self._holder()
         sender = gl.message.sender_address
@@ -215,11 +273,11 @@ class Escrow(gl.contract.Contract):
         else:
             payee = self.buyer
             paid = "buyer"
-        _pay(payee, amount)
-        self.pool = gl.u256(0)
+        _Payee(payee).emit_transfer(value=amount)
+        self.pool = u256(0)
         self.settled = True
         outcome = {"passport": str(holder.get("status")), "valid": bool(holder["valid"]), "bound": bool(holder["covers"]),
-                   "paid": paid, "to": payee.as_hex, "amount": str(int(amount)),
+                   "unrevoked": bool(holder["unrevoked"]), "paid": paid, "to": payee.as_hex, "amount": str(int(amount)),
                    "settled_by": "buyer" if is_buyer else "operator"}
         self.outcome_json = json.dumps(outcome)
         return json.dumps({"ok": True, **outcome})
@@ -235,7 +293,8 @@ class Escrow(gl.contract.Contract):
             "register": self.register.as_hex, "agent": str(self.agent_id), "claim": str(self.claim_id),
             "operator": self.operator.as_hex, "endpoint": str(self.endpoint),
             "buyer": self.buyer.as_hex, "pool": str(int(self.pool)), "settled": bool(self.settled),
-            "funded_at": str(self.funded_at), "settle_after_days": SETTLE_AFTER_DAYS,
+            "funded_at": str(self.funded_at), "slashed_at_funding": str(self.funded_mark),
+            "settle_after_days": SETTLE_AFTER_DAYS,
             "operator_may_settle": _may_settle(False, True, str(self.funded_at), _now()),
             "outcome": json.loads(str(self.outcome_json)),
         })

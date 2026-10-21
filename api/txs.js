@@ -5,10 +5,12 @@
 // and weighs a hundred kilobytes, so the list is read here and returned as a
 // few bytes per transaction: hash, sender, method, agent, and how it ended.
 //
-//   GET /api/txs?register=0x…   ->  { register, count, txs: [{hash, from, at, method, agent, exec, result, error}] }
+//   GET /api/txs?register=0x…   ->  { register, count, txs: [{hash, from, at, method, agent, value, exec, result, error}] }
+//
+// value is what the transaction sent with the call, in atto (a stake, a top-up, a deposit), as a string.
 export const config = { runtime: "nodejs" };
 
-const RPC = "https://studio-next.genlayer.com/api";
+const RPC = "https://studio.genlayer.com/api";             // GenLayer Studio, chain 61999 (version 2)
 const cache = new Map();            // register -> { at, body }; a few seconds, so a busy page does not hammer the RPC
 const TTL_MS = 5000;
 
@@ -46,6 +48,7 @@ function summarize(t, register) {
   const exec = one?.execution_result || null;
   return {
     hash: t.hash, from: t.from_address, at: t.created_at, status: t.status, method,
+    value: typeof t.value === "number" && Number.isFinite(t.value) ? BigInt(Math.trunc(t.value)).toString() : String(t.value ?? 0),
     agent: typeof args[0] === "string" ? args[0].trim().toLowerCase() : null,
     exec, result: j ? { ok: j.ok, status: j.status ?? null, outcome: j.outcome ?? null } : null,
     error: exec === "ERROR" ? text.slice(0, 160) : null,

@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Passport · what an AI agent actually does</title>
-<meta name="description" content="An on-chain record of what an AI agent actually does. Independent validators run one public battery and agree with one of three words per claim.">
+<meta name="description" content="An on-chain record of what an AI agent actually does, worth what its operator stakes. The network's validators run one public battery and agree with one of three words per claim; a passport whose agent drifts can be caught, and its stake pays the one who caught it.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2040%2040'%3E%3Cdefs%3E%3ClinearGradient%20id='g'%20x1='0'%20y1='1'%20x2='1'%20y2='0'%3E%3Cstop%20offset='0'%20stop-color='%23110FFF'/%3E%3Cstop%20offset='.55'%20stop-color='%239B6AF6'/%3E%3Cstop%20offset='1'%20stop-color='%23E37DF7'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect%20width='40'%20height='40'%20rx='9'%20fill='%2305050a'/%3E%3Cpath%20d='M35.71%2026.51%2026.51%2035.71H13.49L4.29%2026.51V13.49L13.49%204.29H26.51L35.71%2013.49Z'%20fill='none'%20stroke='url(%23g)'%20stroke-width='2.4'/%3E%3Cpath%20d='M20.0%2013.8%2026.2%2020.0%2020.0%2026.2%2013.8%2020.0Z'%20fill='%23fff'/%3E%3Ccircle%20cx='20.0'%20cy='8.8'%20r='1.9'%20fill='%23fff'/%3E%3Ccircle%20cx='30.65'%20cy='16.54'%20r='1.9'%20fill='%23fff'/%3E%3Ccircle%20cx='26.58'%20cy='29.06'%20r='1.9'%20fill='%23fff'/%3E%3Ccircle%20cx='13.42'%20cy='29.06'%20r='1.9'%20fill='%23fff'/%3E%3Ccircle%20cx='9.35'%20cy='16.54'%20r='1.9'%20fill='%23fff'/%3E%3C/svg%3E">
 
 <!-- Switzer = GenLayer body typeface (Fontshare). Lineca is the licensed title face:
@@ -415,6 +415,68 @@ html.intro-open{overflow:hidden}
 .intro .row{margin-top:16px}
 @media (max-width:600px){.intro-card{padding:20px 18px}.intro h2{font-size:21px}}
 
+/* ============================================================ version 2: stake, challenges, waiting */
+h2 .new{margin-left:auto;padding:3px 9px;border-radius:999px;background:var(--grad);color:#fff;font-size:10px;letter-spacing:.14em}
+.target{border:1px solid var(--line);border-radius:12px;background:rgba(255,255,255,.025);padding:14px 16px;margin:14px 0;display:grid;gap:4px;min-width:0}
+.target .head{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap}
+.target .name{font-size:17px;font-weight:600;letter-spacing:-.01em}
+.target .mono{word-break:break-word}
+.target b{color:var(--ink)}
+.steps2{list-style:none;margin:6px 0 0;padding:0;display:grid;gap:14px}
+.steps2 li{display:flex;gap:12px;align-items:flex-start;font-size:14.5px;color:var(--ink-2)}
+.steps2 li .num{width:26px;height:26px;border-radius:8px;display:grid;place-items:center;flex:none;background:var(--grad);color:#fff;font-family:var(--mono);font-size:11px;font-weight:600}
+.steps2 li>div{min-width:0;flex:1}
+.steps2 li b{color:var(--ink);font-weight:600}
+.steps2 .row{margin-top:10px}
+.waitbox{margin-top:14px;border:1px solid var(--line-2);border-radius:12px;background:rgba(0,0,0,.28);padding:14px 16px}
+.waitbox.busy{border-color:rgba(155,106,246,.5)}
+.waitbox .wb-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+.waitbox .wb-head b{font-size:15px;font-weight:600}
+.waitbox .spin{display:inline-block;width:14px;height:14px;color:var(--purple);flex:none}
+.waitbox .wb-stage{margin-left:auto;color:var(--purple);font-size:12px}
+.wb-tx{margin:10px 0 0}
+.wl{display:grid;grid-template-columns:minmax(120px,170px) 1fr;gap:6px 14px;margin:0;font-size:13.5px;line-height:1.5}
+.wl dt{font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3);padding-top:2px}
+.wl dd{margin:0;color:var(--ink-2);min-width:0}
+@media (max-width:600px){.wl{grid-template-columns:1fr;gap:2px}.wl dd{margin-bottom:8px}}
+.result{margin-top:14px;border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+.result .rhead{font-family:var(--mono);font-size:13px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;margin-bottom:6px}
+.result.revoked{border-color:rgba(255,132,120,.45);background:var(--badbg)}
+.result.revoked .rhead{color:var(--bad)}
+.result.held{border-color:rgba(111,227,168,.45);background:var(--okbg)}
+.result.held .rhead{color:var(--ok)}
+.result.inconclusive,.result.unanswered{border-color:rgba(255,209,119,.45);background:var(--openbg)}
+.result.inconclusive .rhead,.result.unanswered .rhead{color:var(--open)}
+.result .money{margin:8px 0 0;padding-left:18px;font-size:14px;color:var(--ink-2)}
+.result .mono{word-break:break-word}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:0 0 18px}
+.stats:empty{display:none}
+.stats .tile{border:1px solid var(--line);border-radius:12px;padding:10px 12px;background:rgba(255,255,255,.025);display:flex;flex-direction:column;gap:2px;min-width:0}
+.stats .k{font-family:var(--mono);font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3)}
+.stats b{font-size:17px;font-weight:600}
+.stats .sub{font-size:12px;color:var(--ink-3)}
+.agent .stakeline{color:var(--ink-2);margin:6px 0 2px}
+.agent details{margin-top:10px}
+.agent details summary{cursor:pointer;font-size:13.5px;color:var(--ink-2)}
+.agent details summary:hover{color:var(--ink)}
+.agent details .wl{margin-top:10px}
+.scroll{overflow-x:auto;max-width:100%}
+.scroll .who{margin-top:10px;min-width:640px}
+.pager{justify-content:center;margin-top:14px}
+.pager button{padding:8px 14px;font-size:13px}
+.chip.on{background:var(--grad);border-color:transparent;color:#fff}
+#stakeLine b{color:var(--ink)}
+.demo .badges{display:inline-flex;gap:6px;flex-wrap:wrap}
+#jobPick .chip{white-space:normal;text-align:left;line-height:1.35;max-width:100%}
+@media (max-width:600px){.who td.mono{white-space:normal}}
+/* a phone: 16px gutters, and the wallet pill's three buttons on one line */
+@media (max-width:420px){
+  .wrap{padding:0 16px}
+  header .right{gap:6px;padding:4px}
+  header .right .help{width:32px;height:32px}
+  header .right button:not(.primary):not(.help){padding-left:12px;padding-right:12px;font-size:13.5px}
+}
+
 /* ============================================================ reveal */
 .rv{transition:opacity .7s var(--ease),transform .7s var(--ease)}
 html.anim .rv:not(.in){opacity:0;transform:translateY(14px)}
@@ -455,15 +517,16 @@ html.anim .rv:not(.in){opacity:0;transform:translateY(14px)}
       <button id="introX" class="x" aria-label="close">×</button>
     </div>
     <h2 id="introTitle">What this site is, and what to do here</h2>
-    <p>An on-chain record of what an AI agent actually does. An operator registers an agent (an HTTPS endpoint) with a few claims: which model family answers, what it can do, whether it ignores instructions smuggled into its input. GenLayer's validators each test the agent themselves and must agree, claim by claim, before a passport is issued. Anything else can then ask one free question: <span class="mono">is_valid(agent, claim)</span>.</p>
+    <p>An on-chain record of what an AI agent actually does, worth what its operator stakes. An operator registers an agent (an HTTPS endpoint) with a few claims, which model family answers, what it can do, whether it ignores instructions smuggled into its input, and 0.5 GEN behind each claim. GenLayer's validators each test the agent themselves and must agree, claim by claim, before a passport is issued. Anything else can then ask one free question: <span class="mono">is_valid(agent, claim)</span>. And anyone can put the passport to the test later: if the model behind the endpoint was swapped, the validators catch it, the passport is revoked, and half the stake pays whoever caught it.</p>
     <ol>
-      <li><span class="num">1</span><span>Connect a wallet (Rabby or any EIP-6963 wallet); it is asked to add GenLayer Studio Next. Press Get test GEN, it is free test money, and every signature carries a small quoted fee that comes back when unused.</span></li>
-      <li><span class="num">2</span><span id="introStep2">Load the demo register, or paste one, or deploy your own from the page.</span></li>
-      <li><span class="num">3</span><span>Pick one of the twelve demo agents with one click and press Register. One signature.</span></li>
-      <li><span class="num">4</span><span>Press Inspect and watch the validators vote. Each one sends the public battery to the agent itself and answers with one word per claim: matches, contradicts or inconclusive.</span></li>
-      <li><span class="num">5</span><span>Read the passport: issued, refused or pending, with the validators' reasons on the record. Then ask the gate.</span></li>
+      <li><span class="num">1</span><span>Connect a wallet (Rabby or any EIP-6963 wallet); it is asked to add GenLayer Studio (chain 61999). Press Get test GEN: it is free test money, and Studio charges no gas.</span></li>
+      <li><span class="num">2</span><span id="introStep2">The version 2 register loads by itself; you can also paste one, or deploy your own from the page.</span></li>
+      <li><span class="num">3</span><span>Catch a swapped model: deposit the bond and challenge the demo agent whose model changed after its passport was issued. If the validators catch it, half its stake is yours.</span></li>
+      <li><span class="num">4</span><span>Pay the honest demo agent through escrow: open a job, fund it, settle it, and watch the operator get paid on chain.</span></li>
+      <li><span class="num">5</span><span>Stake your own agent: pick one of the thirteen demo agents, Register with 0.5 GEN a claim, then Inspect it.</span></li>
+      <li><span class="num">6</span><span>Read the passports: the stake, the verdicts, every challenge and the money it moved. Then ask the gate.</span></li>
     </ol>
-    <p class="fine">The demo agents are scripted responders on this site, so you can try everything without running an agent. Nothing is signed by anybody but you. The five steps stay at the top of the page, and the ? button brings this box back.</p>
+    <p class="fine">The demo agents are scripted responders on this site, so you can try everything without running an agent. Nothing is signed by anybody but you. Every wait on the page says what is happening, how long, whether you need to act, whether you can leave, and where your money is. The six steps stay at the top of the page, and the ? button brings this box back.</p>
     <div class="row">
       <button id="introStart" class="primary">Start</button>
       <button id="introClose">Got it</button>
@@ -493,6 +556,7 @@ html.anim .rv:not(.in){opacity:0;transform:translateY(14px)}
   </div>
   <nav class="pill">
     <a href="#how">How it works</a>
+    <a href="#catch-sec">Catch a swap</a>
     <a href="#agents-sec">Demo agents</a>
     <a href="#passports">Passports</a>
     <a href="#battery-sec">The battery</a>
@@ -513,14 +577,14 @@ html.anim .rv:not(.in){opacity:0;transform:translateY(14px)}
         <polygon points="53.5 32.35 70.04 67.12 54.47 74.9 97.76 91.93 53.5 0 53.5 32.35"/>
         <polygon points="48.64 43.78 58.33 62.94 48.64 67.69 39.47 62.92 48.64 43.78"/>
       </svg>
-      GenLayer Agent Tank · Agentic Commerce
+      GenLayer Agent Tank · Agentic Commerce · version 2
     </span>
     <h1 class="hero-title" id="reveal-title">Passport</h1>
-    <p class="hero-sub">an on-chain record of behaviour</p>
-    <p class="lede">An operator registers an agent and a few claims. Five validators each talk to the agent themselves, then agree, or refuse, with one of three words per claim.</p>
-    <p class="note">This is not a proof of which model sits behind an endpoint; no such proof exists. It is five independent observers agreeing on behaviour, and it says <em>inconclusive</em> whenever the behaviour did not settle the question. Every passport, issued or refused, is on the explorer with the validators' reasons.</p>
+    <p class="hero-sub">an on-chain record of behaviour, with a stake behind it</p>
+    <p class="lede">An operator registers an agent, a few claims, and 0.5 GEN behind each. The network's validators each talk to the agent themselves, then agree, or refuse, with one of three words per claim. Anyone can put the passport to the test later, and a swapped model loses its stake to whoever catches it.</p>
+    <p class="note">This is not a proof of which model sits behind an endpoint; no such proof exists. It is the network's validators agreeing on behaviour, and it says <em>inconclusive</em> whenever the behaviour did not settle the question. Every passport, issued, refused or revoked, is on the explorer with the validators' reasons and the money each challenge moved.</p>
     <div class="hero-cta">
-      <a class="ghost-link" href="#register-sec">Register an agent
+      <a class="ghost-link" href="#catch-sec">Catch a swapped model
         <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
       </a>
       <a class="ghost-link" href="#how">Read the flow</a>
@@ -546,10 +610,11 @@ html.anim .rv:not(.in){opacity:0;transform:translateY(14px)}
 <div class="rail rv" id="rail" aria-label="what to do here, in order">
   <ol id="steps">
     <li data-step="1" data-go="rail"><span class="n"><span>1</span></span>Connect a wallet</li>
-    <li data-step="2" data-go="register-sec"><span class="n"><span>2</span></span>Load a register</li>
-    <li data-step="3" data-go="agent-sec"><span class="n"><span>3</span></span>Register an agent</li>
-    <li data-step="4" data-go="inspect-sec"><span class="n"><span>4</span></span>Inspect</li>
-    <li data-step="5" data-go="passports"><span class="n"><span>5</span></span>Read the passport, ask the gate</li>
+    <li data-step="2" data-go="register-sec"><span class="n"><span>2</span></span>Load the register</li>
+    <li data-step="3" data-go="catch-sec"><span class="n"><span>3</span></span>Catch a swapped model</li>
+    <li data-step="4" data-go="escrow-sec"><span class="n"><span>4</span></span>Pay through escrow</li>
+    <li data-step="5" data-go="agent-sec"><span class="n"><span>5</span></span>Stake your own agent</li>
+    <li data-step="6" data-go="passports"><span class="n"><span>6</span></span>Read the passports, ask the gate</li>
   </ol>
   <p id="railHint" class="fine"></p>
 </div>
@@ -558,31 +623,83 @@ html.anim .rv:not(.in){opacity:0;transform:translateY(14px)}
   <h2><span class="n">01</span> How a passport is issued</h2>
   <div class="card">
     <div class="flow">
-      <div class="step"><span class="num">01</span><div class="txt"><span class="when">operator</span><h3>Register the agent</h3><p>An HTTPS endpoint and at most six claims from a closed set. A claim the battery cannot test is refused at registration. Whoever registers is the operator; every row keeps that address.</p></div></div>
-      <div class="step"><span class="num">02</span><div class="txt"><span class="when">operator · costs consensus</span><h3>Inspect</h3><p>Every validator POSTs the same public probes to the endpoint <em>itself</em>; nothing the leader saw is trusted. Judged probes are asked in two presentation orders.</p></div></div>
+      <div class="step"><span class="num">01</span><div class="txt"><span class="when">operator · with a stake</span><h3>Register the agent</h3><p>An HTTPS endpoint, at most six claims from a closed set, and <em>0.5 GEN behind each claim</em>, sent with the registration and held while the agent exists. A claim the battery cannot test is refused, and the stake comes back in the same transaction. Whoever registers is the operator.</p></div></div>
+      <div class="step"><span class="num">02</span><div class="txt"><span class="when">operator · costs consensus</span><h3>Inspect</h3><p>Every validator POSTs the same public probes to the endpoint <em>itself</em>; nothing the leader saw is trusted. Judged probes are asked as two plain questions (meets, fails to meet), each in two presentation orders.</p></div></div>
       <div class="step"><span class="num">03</span><div class="txt"><span class="when">three words</span><h3>One word per claim</h3><p><span class="mono" style="color:var(--ok)">matches</span> · <span class="mono" style="color:var(--bad)">contradicts</span> · <span class="mono" style="color:var(--open)">inconclusive</span>. Validators compare their word with the leader's, per claim, exactly. Reasons are stored, never compared.</p></div></div>
-      <div class="step"><span class="num">04</span><div class="txt"><span class="when">outcome</span><h3>Issued, refused or pending</h3><p>Every claim matches → issued for 30 days on the transaction's own clock. Any contradiction → refused, reasons on the record, and the same endpoint with the same claims cannot be asked again until something changes. Otherwise pending.</p></div></div>
-      <div class="step"><span class="num">05</span><div class="txt"><span class="when">anyone · once a day</span><h3>Challenge</h3><p>For everyone who is not the operator: a buyer about to pay, a marketplace, a rival. Same battery, same judges, same rule. Only a contradiction changes anything, and the challenger is written on the row. Evidence can take a passport away; noise cannot.</p></div></div>
-      <div class="step"><span class="num">06</span><div class="txt"><span class="when">anyone · free</span><h3>The gate</h3><p><span class="mono">is_valid(agent, claim)</span> is a view with no model and no consensus. The escrow fixture binds a job to the operator address and endpoint the buyer knows, never to the name; it pays that operator only while the gate says yes and the row still matches, refunds the buyer otherwise, and lets the operator settle after seven days so a buyer cannot sit on a finished job.</p></div></div>
+      <div class="step"><span class="num">04</span><div class="txt"><span class="when">outcome</span><h3>Issued, refused or pending</h3><p>Every claim matches → issued for 30 days on the transaction's own clock. Any contradiction → refused, reasons on the record, and the same endpoint with the same claims cannot be asked again until something changes. Otherwise pending. The operator's inspection of a passport in force is a renewal.</p></div></div>
+      <div class="step"><span class="num">05</span><div class="txt"><span class="when">anyone but the operator · bonded</span><h3>Challenge</h3><p>A buyer about to pay, a marketplace, a rival: anyone puts a passport in force to the test, bonded with credit worth <em>a tenth of the stake</em>. Same battery, same judges. A contradiction revokes it and slashes the stake: half to the challenger at once, half kept by the register. Every claim holding sends the bond to the operator; nothing settled costs a fee.</p></div></div>
+      <div class="step"><span class="num">06</span><div class="txt"><span class="when">anyone · free</span><h3>The gate</h3><p><span class="mono">is_valid(agent, claim)</span> is a view with no model and no consensus. The escrow fixture binds a job to the operator address and endpoint the buyer knows, never to the name; it pays that operator only while the gate says yes, the row still matches and nothing was slashed since the buyer funded, and refunds the buyer otherwise.</p></div></div>
     </div>
     <table class="who">
       <thead><tr><th>call</th><th>who</th><th>what it can do</th></tr></thead>
       <tbody>
-        <tr><td class="mono">register</td><td>anyone</td><td>puts an agent on the record; the sender becomes its operator</td></tr>
-        <tr><td class="mono">update · withdraw</td><td>the operator</td><td>change endpoint or claims (resets the passport); take the agent off</td></tr>
-        <tr><td class="mono">inspect</td><td>the operator</td><td>runs the battery; any outcome applies</td></tr>
-        <tr><td class="mono">challenge</td><td>anyone, once a day per agent</td><td>runs the battery on an issued passport, for a stranger who doubts it; only a contradiction changes it</td></tr>
-        <tr><td class="mono">is_valid · passport</td><td>anyone, free</td><td>read</td></tr>
+        <tr><td class="mono">register</td><td>anyone, with 0.5 GEN a claim</td><td>puts an agent on the record with its stake; the sender becomes its operator</td></tr>
+        <tr><td class="mono">update</td><td>the operator, not while the passport is in force</td><td>change endpoint or claims (resets the passport); tops the stake up or hands the excess back</td></tr>
+        <tr><td class="mono">retire · unstake</td><td>the operator</td><td>end the agent (in force, and challengeable, for one more day); then take the stake back</td></tr>
+        <tr><td class="mono">inspect</td><td>the operator</td><td>runs the battery; on a passport in force it is a renewal, and a contradiction slashes the whole stake</td></tr>
+        <tr><td class="mono">challenge</td><td>anyone but the operator, bonded, once in ten minutes per challenger and passport</td><td>runs the battery on a passport in force; the money table below says what it moves</td></tr>
+        <tr><td class="mono">deposit · withdraw</td><td>anyone, for their own credit</td><td>add challenge credit; take all of it back</td></tr>
+        <tr><td class="mono">is_valid · passport · challenges_of · stats</td><td>anyone, free</td><td>read</td></tr>
       </tbody>
     </table>
+    <div class="scroll"><table class="who">
+      <thead><tr><th>a challenge finds</th><th>the passport</th><th>the stake (0.5 GEN a claim)</th><th>the challenger</th><th>the operator</th></tr></thead>
+      <tbody>
+        <tr><td>a claim contradicted</td><td><b>revoked</b></td><td>slashed: half to the challenger at once, half kept by the register</td><td>+½ the stake; the bond stays in credit</td><td>loses the stake</td></tr>
+        <tr><td>every claim matching</td><td>stands</td><td>untouched</td><td>−the bond (a tenth of the stake), from credit</td><td>+the bond</td></tr>
+        <tr><td>answers that settle nothing</td><td>stands</td><td>untouched</td><td>−the fee (a twentieth of the stake), from credit</td><td>+the fee</td></tr>
+        <tr><td>no answer from the endpoint</td><td><b>suspended</b>: is_valid says no</td><td>untouched</td><td>nothing</td><td>nothing</td></tr>
+        <tr><td>still no answer an hour later</td><td><b>revoked</b></td><td>slashed, as for a contradiction</td><td>+½ the stake</td><td>loses the stake</td></tr>
+      </tbody>
+    </table></div>
+    <p class="fine" style="margin:12px 0 0">A four-claim passport holds 2 GEN: the bond is 0.2 GEN, the fee 0.1 GEN, and a catch pays 1 GEN. Every transfer out of the register lands when its transaction is finalized, a few minutes after the verdict.</p>
   </div>
 </section>
 
-<section id="agents-sec" class="rv">
-  <h2><span class="n">02</span> The demo agents, and what each one is for</h2>
+<div class="grid">
+<section id="catch-sec" class="rv">
+  <h2><span class="n">02</span> Catch a swapped model <span class="new">new in v2</span></h2>
   <div class="card">
-    <p class="fine" style="margin:0 0 16px">Twelve agents live on this site so anyone can try Passport without running one. They are scripted responders, not models: each answers the public battery in a fixed way, chosen so that together they show every outcome the register knows. The battery does not care what sits behind an endpoint. It sends the same probes to whatever is there, and the verdicts come from code and from the validators' own models. <span class="mono">use</span> fills the form in section 04.</p>
+    <p class="fine" style="margin:0">A passport describes behaviour at one moment. This demo agent was inspected and issued while its endpoint answered like an OpenAI model; at a moment written into its URL, the same endpoint started answering like another model: it names Meta, refuses to write code and obeys the smuggled instructions. Nothing on chain knows yet. Its operator staked 0.5 GEN behind each claim. Catch it.</p>
+    <div id="catchTarget" class="target"><span class="fine">loading …</span></div>
+    <ol class="steps2">
+      <li><span class="num">1</span><div><b>Deposit the bond.</b> A challenge is bonded with credit worth a tenth of the stake it puts at risk. It stays yours if the agent is caught; it goes to the operator if every claim holds.<div class="row"><button id="catchDeposit">Deposit the bond</button><span id="catchCredit" class="mono muted"></span></div></div></li>
+      <li><span class="num">2</span><div><b>Optional: put a job in escrow on it first</b> (section 03, choose the swap agent). After the catch, settling that job refunds you.</div></li>
+      <li><span class="num">3</span><div><b>Challenge it.</b> Every validator sends the public battery to the agent itself and judges each claim; one to three minutes, and you may leave while it runs.<div class="row"><button id="catchGo" class="primary">Challenge it</button><button id="catchWithdraw">Take back my credit</button></div></div></li>
+    </ol>
+    <p id="catchSt" class="st"></p>
+    <div id="catchWait"></div>
+    <div id="catchResult"></div>
+  </div>
+</section>
+<section id="escrow-sec" class="rv">
+  <h2><span class="n">03</span> Pay the honest one through escrow <span class="new">new in v2</span></h2>
+  <div class="card">
+    <p class="fine" style="margin:0">A job you fund as its buyer, bound to one agent, one claim, and the operator and endpoint you know. Settling it asks the register, for free: it pays the operator only while the passport covers the claim and nothing was slashed since you funded; otherwise it refunds you. On Studio the payment really moves, and you watch the operator's balance change.</p>
+    <div class="suggest" id="jobPick"><span class="lead">a job for</span><span class="fine">loading …</span></div>
+    <div id="jobTarget" class="target"><span class="fine">loading …</span></div>
+    <div id="jobAmountRow"><label for="jobAmount">Amount · test GEN</label><input id="jobAmount" type="text" value="1" inputmode="decimal" autocomplete="off"></div>
+    <div class="row" style="margin-top:16px"><button id="jobGo" class="primary">Open the job</button><button id="jobForget">New job</button></div>
+    <p class="fine" style="margin:10px 0 0">Three signatures: open (deploys the job from your wallet), fund (sends the amount), settle. This browser remembers the job between them.</p>
+    <p id="jobSt" class="st"></p>
+    <div id="jobWait"></div>
+    <div id="jobResult"></div>
+  </div>
+</section>
+</div>
+
+<section id="agents-sec" class="rv">
+  <h2><span class="n">04</span> The demo agents, and what each one is for</h2>
+  <div class="card">
+    <p class="fine" style="margin:0 0 16px">Thirteen agents live on this site so anyone can try Passport without running one. They are scripted responders, not models: each answers the public battery in a fixed way, chosen so that together they show every outcome the register knows. The battery does not care what sits behind an endpoint. It sends the same probes to whatever is there, and the verdicts come from code and from the validators' own models. <span class="mono">use</span> fills the form in section 06.</p>
     <div class="demos">
+      <article class="demo">
+        <div class="head"><h3>swap</h3><span class="badges"><span class="badge issued">issued</span><span class="badge refused">revoked</span></span></div>
+        <div class="mono muted">the same four claims as the honest agent · ?persona=swap&amp;at=&lt;unix seconds&gt;</div>
+        <p><b>Answers.</b> Exactly like the honest agent until the moment written in its URL; from then on like another model: names Meta AI, refuses to write code, obeys the smuggled instructions. With <span class="mono">&amp;to=coy</span> it stops saying who made it instead.</p>
+        <p><b>Battery.</b> Inspected before its moment: issued. Challenged after it: three claims contradict, the passport is revoked and the stake slashed, half to the challenger. Drifted to coy: inconclusive, the passport stands and the challenger pays the fee. <b>New in version 2.</b></p>
+        <button class="chip" data-preset="swap">use the swap agent</button>
+      </article>
       <article class="demo">
         <div class="head"><h3>honest</h3><span class="badge issued">issued</span></div>
         <div class="mono muted">family:gpt · can:math · can:code · safe:injection</div>
@@ -676,59 +793,68 @@ html.anim .rv:not(.in){opacity:0;transform:translateY(14px)}
   const answer = await askYourModel(prompt);  // any model, any SDK
   res.json({ answer });
 }</pre>
-      <p class="fine">The function that serves the twelve demo agents (<span class="mono">api/agent.js</span> in the source) switches to a real model when it is deployed with an API key.</p>
+      <p class="fine">The function that serves the thirteen demo agents (<span class="mono">api/agent.js</span> in the source) switches to a real model when it is deployed with an API key.</p>
     </details>
   </div>
 </section>
 
 <section id="register-sec" class="rv">
-  <h2><span class="n">03</span> Register: the contract that holds the passports</h2>
+  <h2><span class="n">05</span> Register: the contract that holds the passports and their stakes</h2>
   <div class="card">
     <div class="row">
-      <input id="addr" type="text" style="flex:1 1 360px" placeholder="0x… paste a Passport register, or deploy one">
+      <input id="addr" type="text" style="flex:1 1 360px" placeholder="0x… paste a version 2 Passport register, or deploy one">
       <button id="load">Load</button>
       <button id="deploy">Deploy a register</button>
     </div>
-    <div class="suggest"><span class="lead" id="useDemoLead" hidden>or</span><button class="chip" id="useDemoReg" hidden>load the demo register</button><span class="fine">a register is a deployed <span class="mono">contracts/passport.py</span>; deploy your own from this page, from your wallet</span></div>
+    <div class="suggest"><span class="lead" id="useDemoLead" hidden>or</span><button class="chip" id="useDemoReg" hidden>load the version 2 register</button><span class="fine">a register is a deployed <span class="mono">contracts/passport.py</span> (version 2) on GenLayer Studio; deploy your own from this page, from your wallet</span></div>
     <p id="regSt" class="st"></p>
   </div>
 </section>
 
 <div class="grid">
 <section id="agent-sec" class="rv">
-  <h2><span class="n">04</span> Register an agent</h2>
+  <h2><span class="n">06</span> Register an agent, with its stake</h2>
   <div class="card">
-    <div class="suggest"><span class="lead">try</span><button class="chip" data-preset="honest">the honest agent</button><button class="chip" data-preset="liar">the liar</button><button class="chip" data-preset="coy">the coy agent</button><button class="chip" data-preset="polyglot">the polyglot</button><button class="chip" data-preset="hijacker">the hijacker</button><button class="chip" data-preset="embellisher">the embellisher</button><button class="chip" data-preset="mathematician">the mathematician</button><button class="chip" data-preset="miscalculator">the miscalculator</button><button class="chip" data-preset="gullible">the gullible one</button><button class="chip" data-preset="overclaimer">the overclaimer</button><button class="chip" data-preset="chatterbox">the chatterbox</button><button class="chip" data-preset="echo">the echo</button><button class="chip" id="genId">suggest an id</button></div>
+    <div class="suggest"><span class="lead">try</span><button class="chip" data-preset="honest">the honest agent</button><button class="chip" data-preset="swap">the swap agent</button><button class="chip" data-preset="liar">the liar</button><button class="chip" data-preset="coy">the coy agent</button><button class="chip" data-preset="polyglot">the polyglot</button><button class="chip" data-preset="hijacker">the hijacker</button><button class="chip" data-preset="embellisher">the embellisher</button><button class="chip" data-preset="mathematician">the mathematician</button><button class="chip" data-preset="miscalculator">the miscalculator</button><button class="chip" data-preset="gullible">the gullible one</button><button class="chip" data-preset="overclaimer">the overclaimer</button><button class="chip" data-preset="chatterbox">the chatterbox</button><button class="chip" data-preset="echo">the echo</button><button class="chip" id="genId">suggest an id</button></div>
     <p id="tryWhat" class="fine" style="margin:6px 0 0">Press a chip: what that agent does, and what the battery is expected to say, appears here. Section 02 has the full card for each one.</p>
     <label for="aid">Agent id</label>
     <input id="aid" type="text" list="agentIds" placeholder="e.g. my_assistant · up to 40 characters, stored in lowercase">
     <label for="endpoint">Endpoint · https, answers POST {"prompt"} with {"answer"}</label>
     <input id="endpoint" type="text" placeholder="https://…/api/agent">
-    <p class="fine" style="margin:8px 0 0">Any HTTPS URL that answers <span class="mono">POST {"prompt": "…"}</span> with <span class="mono">{"answer": "…"}</span>. The six demo agents live on this site at <span class="mono" id="demoBase">/api/agent?persona=honest</span> and so on for liar, coy, polyglot, hijacker and embellisher; <a href="#agents-sec">section 02</a> says what each one does. The <span class="mono">try</span> chips fill all three boxes.</p>
+    <p class="fine" style="margin:8px 0 0">Any HTTPS URL that answers <span class="mono">POST {"prompt": "…"}</span> with <span class="mono">{"answer": "…"}</span>. The thirteen demo agents live on this site at <span class="mono" id="demoBase">/api/agent?persona=honest</span> and so on for the others; <a href="#agents-sec">section 04</a> says what each one does. The <span class="mono">try</span> chips fill all three boxes.</p>
     <label>Claims · from the closed set the battery can test</label>
     <div class="claims" id="claims"></div>
     <p class="fine" style="margin-top:12px">One model family at most. Everything else is a capability or a safety property.</p>
+    <p id="stakeLine" class="fine" style="margin-top:8px"></p>
     <div class="row" style="margin-top:16px">
       <button id="register" class="primary">Register</button>
       <button id="update">Update mine</button>
-      <button id="withdraw">Withdraw mine</button>
+      <button id="retire">Retire mine</button>
+      <button id="unstake">Unstake mine</button>
     </div>
     <p id="regAgentSt" class="st"></p>
+    <div id="regWait"></div>
+    <p class="fine" style="margin-top:12px"><b>Update</b> changes the endpoint or the claims and the stake with them: it sends what new claims lack and hands back what removed ones no longer need. It is refused while the passport is in force, so nobody can rewrite a row from under a challenge. <b>Retire</b> ends the agent: its passport stays in force, and challengeable, for one more day. <b>Unstake</b> takes the stake back after that day.</p>
   </div>
 </section>
 
 <section id="inspect-sec" class="rv">
-  <h2><span class="n">05</span> Inspect or challenge: the calls that cost consensus</h2>
+  <h2><span class="n">07</span> Inspect or challenge: the calls that cost consensus</h2>
   <div class="card">
     <div class="suggest" id="pickAgents"><span class="lead">pick</span><span class="fine">load a register and the registered agents appear here</span></div>
     <label for="iid">Agent id</label>
     <input id="iid" type="text" list="agentIds" placeholder="the agent to inspect or challenge">
-    <div class="row" style="margin-top:16px">
+    <div id="chTarget" class="target"><span class="fine">pick an agent above: its stake, the bond a challenge needs and your credit appear here</span></div>
+    <div class="row" style="margin-top:6px">
       <button id="inspect" class="primary">Inspect (operator)</button>
-      <button id="challenge">Challenge (anyone)</button>
+      <button id="challenge">Challenge (anyone else)</button>
+      <button id="chDeposit">Deposit the bond</button>
+      <button id="chWithdraw">Take back my credit</button>
     </div>
     <p id="inspectSt" class="st"></p>
-    <p class="fine" style="margin-top:12px"><b>Inspect</b> belongs to the operator, the wallet that registered the agent: any outcome applies, and a refused pair (endpoint + claims) cannot be re-inspected unchanged. Change something first. <b>Challenge</b> is for everyone else: a buyer about to pay, a marketplace, a rival. Anyone who doubts an issued passport can make the validators run the same battery again, once a day per agent. A contradiction refuses the passport and writes the challenger's address on the row. Anything less leaves it standing: a passport can be taken away with evidence, never by asking on a bad day. Either way each validator sends the battery to the endpoint itself, and the round settles only when a majority of them say the same words as the leader.</p>
+    <div id="chWait"></div>
+    <div id="chResult"></div>
+    <p class="fine" style="margin-top:12px"><b>Inspect</b> belongs to the operator, the wallet that registered the agent: on a passport not in force any outcome applies, and a refused pair (endpoint + claims) cannot be re-inspected unchanged. On a passport in force it is a renewal: every claim matching renews it for 30 days, a contradiction revokes it and the register keeps the whole stake. <b>Challenge</b> is for everyone else, bonded with credit worth a tenth of the stake (Deposit the bond adds exactly what is missing). A contradiction revokes the passport, pays the challenger half the stake and writes the challenger's address on the row; every claim holding sends the bond to the operator; nothing settled costs a twentieth of the stake. One address may challenge one passport once in ten minutes. Either way each validator sends the battery to the endpoint itself, and the round settles only when a majority of them say the same words as the leader.</p>
     <label>Check a gate for free</label>
     <div class="gate">
       <div class="fields">
@@ -746,13 +872,13 @@ html.anim .rv:not(.in){opacity:0;transform:translateY(14px)}
 </div>
 
 <section id="passports" class="rv">
-  <h2><span class="n">06</span> Passports</h2>
-  <div class="card" id="agents"><p class="muted">load a register to see its agents</p></div>
+  <h2><span class="n">08</span> Passports, their stakes and their challenges</h2>
+  <div class="card"><div id="stats" class="stats"></div><div id="agents"><p class="muted">load a register to see its agents</p></div></div>
 </section>
 
 <div class="grid">
 <section id="battery-sec" class="rv">
-  <h2><span class="n">07</span> The battery, public</h2>
+  <h2><span class="n">09</span> The battery, public</h2>
   <div class="panel open" data-panel>
     <button class="bar" data-toggle>
       <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
@@ -763,7 +889,7 @@ html.anim .rv:not(.in){opacity:0;transform:translateY(14px)}
   </div>
 </section>
 <section class="rv">
-  <h2><span class="n">08</span> The rules, published by the contract</h2>
+  <h2><span class="n">10</span> The rules, published by the contract</h2>
   <div class="panel open" data-panel>
     <button class="bar" data-toggle>
       <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
@@ -776,7 +902,7 @@ html.anim .rv:not(.in){opacity:0;transform:translateY(14px)}
 </div>
 
 <section class="rv">
-  <h2><span class="n">09</span> Log</h2>
+  <h2><span class="n">11</span> Log</h2>
   <div class="panel open" data-panel>
     <button class="bar logbar" id="logbar" data-toggle>
       <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
@@ -804,13 +930,13 @@ html.anim .rv:not(.in){opacity:0;transform:translateY(14px)}
     <polygon points="53.5 32.35 70.04 67.12 54.47 74.9 97.76 91.93 53.5 0 53.5 32.35"/>
     <polygon points="48.64 43.78 58.33 62.94 48.64 67.69 39.47 62.92 48.64 43.78"/>
   </svg>
-  <span class="built">Passport · built for the GenLayer Agent Tank · reads and writes GenLayer Studio Next (chain 61997) from your own wallet; nothing is signed by anybody else. <a href="https://github.com/hossein6191/passport" target="_blank" rel="noopener">source</a> · <a href="./contracts/passport.py" target="_blank" rel="noopener">the contract</a> · <a id="regLink" href="#register-sec">the register</a></span>
+  <span class="built">Passport version 2 · built for the GenLayer Agent Tank · reads and writes GenLayer Studio (chain 61999) from your own wallet; nothing is signed by anybody else. <a href="https://github.com/hossein6191/passport" target="_blank" rel="noopener">source</a> · <a href="./contracts/passport.py" target="_blank" rel="noopener">the contract</a> · <a id="regLink" href="#register-sec">the register</a></span>
 </footer>
 </div>
 
 <!-- the app, untouched; loaded so that a failed load is said out loud instead of leaving dead buttons -->
 <script type="module">
-import("./passport-app.js?v=7").catch(function (e) {
+import("./passport-app.js?v=8").catch(function (e) {
   var why = String(e && e.message || e).replace(/[<>&]/g, "");
   var l = document.getElementById("log"); if (l) l.innerHTML += '\n<span class="warn">✗ the app could not load (' + why + '); reload the page</span>';
   var h = document.getElementById("railHint"); if (h) h.textContent = "the app did not load (" + why + "); reload the page";
@@ -1096,7 +1222,9 @@ import("./passport-app.js?v=7").catch(function (e) {
 
   // a spinner for every call that goes to the network
   [["load", "regSt"], ["deploy", "regSt"], ["register", "regAgentSt"], ["update", "regAgentSt"],
-   ["withdraw", "regAgentSt"], ["inspect", "inspectSt"], ["challenge", "inspectSt"], ["gate", "gateSt"]
+   ["retire", "regAgentSt"], ["unstake", "regAgentSt"], ["inspect", "inspectSt"], ["challenge", "inspectSt"],
+   ["chDeposit", "inspectSt"], ["chWithdraw", "inspectSt"], ["gate", "gateSt"], ["catchDeposit", "catchSt"],
+   ["catchGo", "catchSt"], ["catchWithdraw", "catchSt"], ["jobGo", "jobSt"]
   ].forEach(function (pair) {
     var btn = document.getElementById(pair[0]), st = document.getElementById(pair[1]);
     if (!btn || !st) return;

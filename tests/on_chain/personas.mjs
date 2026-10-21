@@ -1,27 +1,22 @@
-/* The ten demo agents beyond honest and liar, against the live Studio Next network.
+/* The ten demo agents beyond honest and liar, against GenLayer Studio (chain 61999).
  *
  * smoke.mjs proves the honest agent is issued and the liar refused. This one
  * proves the other outcomes the page promises: coy is pending (a maker that
  * will not say), polyglot is issued on judged probes, the hijacker is refused
- * because the fence holds, and the embellisher is never issued.
+ * because the fence holds, and the embellisher is never issued. Each registration sends
+ * the stake the register asks: 0.5 GEN for each claim.
  *
  *   AGENT_BASE=https://passport-two-taupe.vercel.app/api/agent node tests/on_chain/personas.mjs
  */
 import { createClient, createAccount } from "genlayer-js";
-import { studioDevnet } from "genlayer-js/chains";
+import { studionet } from "genlayer-js/chains";
 import { generatePrivateKey } from "viem/accounts";
 import { readFileSync } from "node:fs";
 
-const RPC = "https://studio-next.genlayer.com/api";
-/* Studio Next (consensus v0.6, chain 61997): every write carries a quoted fee. The SDK simulates
-   the call and quotes what it saw; a call the contract refuses cannot be simulated, so the
-   default quote is used and the refusal lands with its reason. Unused fee comes back. */
-const NETWORK = { ...studioDevnet, rpcUrls: { default: { http: [RPC] } } };
-const feesFor = async (client, address, fn, args) => {
-  try { const e = await client.estimateTransactionFeesForWrite({ address, functionName: fn, args }); return { distribution: e.distribution, messageAllocations: e.messageAllocations, feeValue: e.feeValue }; }
-  catch (x) { const d = await client.estimateTransactionFees({}); return { distribution: d.distribution, feeValue: d.feeValue }; }
-};
-const deployFees = async (client) => { const d = await client.estimateTransactionFees({}); return { distribution: d.distribution, feeValue: d.feeValue }; };
+const RPC = "https://studio.genlayer.com/api";
+/* GenLayer Studio (chain 61999), genlayer-js 1.1.8: no fee quotes, and value messages execute. */
+const NETWORK = studionet;
+const STAKE = 10n ** 18n / 2n;   // the register's stake per claim
 const BASE = (process.env.AGENT_BASE || "https://passport-two-taupe.vercel.app/api/agent").replace(/\/$/, "");
 const rpc = async (m, p) => {
   let last;
@@ -65,8 +60,8 @@ await rpc("sim_fundAccount", { account_address: op.address, amount: 600e18 });
 const c = createClient({ chain: NETWORK, account: op });
 const rd = createClient({ chain: NETWORK });
 const code = readFileSync(new URL("../../contracts/passport.py", import.meta.url));
-const dh = await c.deployContract({ code, args: [], fees: await deployFees(c) });
-const A = (await c.waitForTransactionReceipt({ hash: dh, waitUntil: "decided", retries: 40, interval: 4000, fullTransaction: true }))?.data?.contract_address;
+const dh = await c.deployContract({ code, args: [], leaderOnly: false });
+const A = (await c.waitForTransactionReceipt({ hash: dh, status: "ACCEPTED", retries: 40, interval: 4000 }))?.data?.contract_address;
 console.log("Passport at", A, "\n");
 
 const wait = async (tx) => {
@@ -85,13 +80,13 @@ const wait = async (tx) => {
   }
   return { msg: "TIMEOUT", exec: "", votes: { a: 0, d: 0, idl: 0 }, applied: false };
 };
-const send = async (fn, args) => await wait(await c.writeContract({ address: A, functionName: fn, args, fees: await feesFor(c, A, fn, args) }));
+const send = async (fn, args, value) => await wait(await c.writeContract({ address: A, functionName: fn, args, ...(value ? { value } : {}) }));
 const view = async (fn, args = []) => await rd.readContract({ address: A, functionName: fn, args });
 const tally = (r) => `${r.votes.a} agree, ${r.votes.d} disagree, ${r.votes.idl} idle`;
 
 const got = {};
 for (const [name, spec] of Object.entries(AGENTS)) {
-  const reg = await send("register", [name, BASE + "?persona=" + name, JSON.stringify(spec.claims)]);
+  const reg = await send("register", [name, BASE + "?persona=" + name, JSON.stringify(spec.claims)], BigInt(spec.claims.length) * STAKE);
   ok(`${name} registers, unverified`, reg.j?.ok === true && reg.j?.status === "unverified", reg.j ? "" : reg.msg.slice(0, 80));
   let r = await send("inspect", [name]);
   if (!r.applied && r.exec !== "ERROR") { console.log(`      ${name}: ${tally(r)}, nothing stored; asking once more`); r = await send("inspect", [name]); }   // a split stores nothing, so ask again once

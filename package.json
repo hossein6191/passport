@@ -5,10 +5,11 @@
   "type": "module",
   "scripts": {
     "smoke": "node tests/on_chain/smoke.mjs",
-    "escrow": "node tests/on_chain/escrow.mjs"
+    "escrow": "node tests/on_chain/escrow.mjs",
+    "test:site": "node --test tests/site/waiting.test.mjs"
   },
   "dependencies": {
-    "genlayer-js": "2.0.0-rc.1",
-    "viem": "2.56.5"
+    "genlayer-js": "1.1.8",
+    "viem": "2.56.8"
   }
 }

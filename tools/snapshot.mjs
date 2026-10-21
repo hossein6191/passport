@@ -6,12 +6,12 @@
      node tools/snapshot.mjs 0x…            # writes data/snapshot.json
 */
 import { createClient } from "genlayer-js";
-import { studioDevnet } from "genlayer-js/chains";
+import { studionet } from "genlayer-js/chains";
 import { writeFileSync, mkdirSync } from "node:fs";
 
 const A = process.argv[2];
 if (!/^0x[0-9a-fA-F]{40}$/.test(A || "")) { console.error("usage: node tools/snapshot.mjs 0x<register>"); process.exit(2); }
-const rd = createClient({ chain: { ...studioDevnet, rpcUrls: { default: { http: ["https://studio-next.genlayer.com/api"] } } } });
+const rd = createClient({ chain: studionet });   // GenLayer Studio, chain 61999
 async function read(fn, args = []) {
   let last;
   for (let i = 0; i < 8; i++) {
@@ -22,7 +22,10 @@ async function read(fn, args = []) {
 }
 const rules = JSON.parse(String(await read("rules")));
 const battery = JSON.parse(String(await read("battery")));
-const order = JSON.parse(String(await read("agents_list")));
+// agents_list is paged, twenty ids at a time
+const first = JSON.parse(String(await read("agents_list", [0, 20])));
+const order = [...first.rows];
+for (let offset = 20; offset < first.count; offset += 20) order.push(...JSON.parse(String(await read("agents_list", [offset, 20]))).rows);
 const agents = {};
 for (const id of order) agents[id] = JSON.parse(String(await read("passport", [id])));
 const snap = { register: A, taken: new Date().toISOString(), rules, battery, order, agents };

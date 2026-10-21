@@ -12,21 +12,14 @@
  * covers the claim.
  */
 import { createClient, createAccount } from "genlayer-js";
-import { studioDevnet } from "genlayer-js/chains";
+import { studionet } from "genlayer-js/chains";
 import { generatePrivateKey } from "viem/accounts";
 // OPERATOR_KEY=0x… (the throwaway key smoke.mjs printed) adds the check that the operator cannot settle before day 7.
 import { readFileSync } from "node:fs";
 
-const RPC = "https://studio-next.genlayer.com/api";
-/* Studio Next (consensus v0.6, chain 61997): every write carries a quoted fee. The SDK simulates
-   the call and quotes what it saw; a call the contract refuses cannot be simulated, so the
-   default quote is used and the refusal lands with its reason. Unused fee comes back. */
-const NETWORK = { ...studioDevnet, rpcUrls: { default: { http: [RPC] } } };
-const feesFor = async (client, address, fn, args) => {
-  try { const e = await client.estimateTransactionFeesForWrite({ address, functionName: fn, args }); return { distribution: e.distribution, messageAllocations: e.messageAllocations, feeValue: e.feeValue }; }
-  catch (x) { const d = await client.estimateTransactionFees({}); return { distribution: d.distribution, feeValue: d.feeValue }; }
-};
-const deployFees = async (client) => { const d = await client.estimateTransactionFees({}); return { distribution: d.distribution, feeValue: d.feeValue }; };
+const RPC = "https://studio.genlayer.com/api";
+/* GenLayer Studio (chain 61999), genlayer-js 1.1.8: no fee quotes, and value messages execute. */
+const NETWORK = studionet;
 const rpc = async (m, p) => { let last; for (let i = 0; i < 8; i++) { try { const r = await fetch(RPC, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: m, params: p }) }); return (await r.json()).result; } catch (e) { last = e; await new Promise((x) => setTimeout(x, 2500)); } } throw last; };
 let pass = 0, fail = 0;
 const ok = (n, c, d = "") => { c ? pass++ : fail++; console.log(`${c ? "PASS" : "FAIL"}  ${n}${d ? "  · " + d : ""}`); };
@@ -41,9 +34,8 @@ const balance = async (a) => BigInt(await rpc("eth_getBalance", [a, "latest"]) |
 const moved = async (a, before) => { for (let i = 0; i < 15; i++) { const b = await balance(a); if (b !== before) return b; await new Promise((r) => setTimeout(r, 4000)); } return await balance(a); };
 const code = readFileSync(new URL("../../contracts/fixtures/escrow.py", import.meta.url));
 const wait = async (tx) => { for (let i = 0; i < 60; i++) { await new Promise((r) => setTimeout(r, 4000)); const t = await rpc("eth_getTransactionByHash", [tx]); if (t?.status === "ACCEPTED" || t?.status === "FINALIZED") { const lr = t.consensus_data?.leader_receipt, one = Array.isArray(lr) ? lr[0] : lr; let msg = ""; try { msg = Buffer.from(one.result, "base64").toString("utf8").replace(/[^\x20-\x7e]/g, " ").trim(); } catch (e) {} let j = null; const b = msg.indexOf("{"); if (b !== -1) { try { j = JSON.parse(msg.slice(b)); } catch (e) {} } return { msg, j, exec: one?.execution_result }; } } return { msg: "TIMEOUT" }; };
-const deployFor = async (agent, operator, endpoint) => { const dh = await c.deployContract({ code, args: [REGISTER, agent, CLAIM, operator, endpoint], fees: await deployFees(c) }); return (await c.waitForTransactionReceipt({ hash: dh, waitUntil: "decided", retries: 40, interval: 4000, fullTransaction: true }))?.data?.contract_address; };
-// a call that carries value is quoted with the default preset: the simulation does not carry the value
-const send = async (E, client, fn, args = [], value) => wait(await client.writeContract({ address: E, functionName: fn, args, ...(value ? { value } : {}), fees: value ? await deployFees(client) : await feesFor(client, E, fn, args) }));
+const deployFor = async (agent, operator, endpoint) => { const dh = await c.deployContract({ code, args: [REGISTER, agent, CLAIM, operator, endpoint], leaderOnly: false }); return (await c.waitForTransactionReceipt({ hash: dh, status: "ACCEPTED", retries: 40, interval: 4000 }))?.data?.contract_address; };
+const send = async (E, client, fn, args = [], value) => wait(await client.writeContract({ address: E, functionName: fn, args, ...(value ? { value } : {}) }));
 const view = async (E, fn, args = []) => rd.readContract({ address: E, functionName: fn, args });
 const row = async (id) => JSON.parse(String(await rd.readContract({ address: REGISTER, functionName: "passport", args: [id] })));
 const GEN = 10n ** 18n;

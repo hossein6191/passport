@@ -11,33 +11,152 @@ claim held for every validator. A refusal is stored too, with the validators' re
 and is as readable as an issue. Anyone (a marketplace, an escrow, another agent) can
 then ask one free question, with no model and no consensus: `is_valid(agent, claim)`.
 
+## Version 2: a passport is worth what its operator stakes
+
+Version 1 left two gaps, and it said so itself. **The payout never moved money on the live
+network**: on Studio Next the escrow decided correctly every time, but its payment message
+failed in the fee layer (`no_matching_allocation`), so no value reached anybody there. And
+**a passport described behaviour at one moment**: nothing made an operator pay for what the
+agent did after it was issued, so an operator could pass the inspection with one model and
+swap in a cheaper one the next day. Version 2 answers both. It moves back to GenLayer Studio
+(chain 61999), where value messages execute, and it puts money behind every claim.
+
+**The contract** (`contracts/passport.py`):
+
+- **A stake per claim.** `register` is payable and takes exactly 0.5 GEN for each claim; the
+  stake is held while the agent exists. `update` tops it up when claims are added and hands the
+  excess back when claims are removed. A passport is issued only when the stake covers every
+  claim. Every payable refusal returns the value in the same transaction and answers
+  `{"ok": false}`; a payable call never raises and never runs a model.
+- **Paid challenges, priced by what they can win.** Anyone but the operator may put an issued
+  passport to the test, bonded with credit (`deposit()` / `withdraw()`) worth a tenth of the
+  stake it puts at risk: 0.2 GEN against a four-claim passport. Every validator POSTs the same
+  public battery to the registered endpoint and judges it exactly as an inspection does. One
+  address may challenge one passport once in ten minutes.
+- **A contradiction revokes and slashes.** If any claim is contradicted, the passport is
+  refused (the validators' verdicts on the row, the refused-pair guard in force), and the whole
+  stake is slashed: half to the challenger in the same transaction, half kept by the register
+  and paid to nobody. An escrow job funded before the revoke refunds its buyer, even if the
+  operator restakes and the passport is issued again later.
+- **An endpoint that stops answering is caught too.** If every validator finds that the
+  endpoint does not answer the battery (a 4xx, a 5xx, no answer), the passport is suspended:
+  `is_valid` says no and nothing moves. If it still does not answer an hour later, the next
+  challenge revokes it and slashes the stake exactly as a contradiction does. Any round in which
+  it answers lifts the suspension. A judge that could not be reached is never counted as the
+  agent's silence.
+- **A passport in force cannot be walked away from, and can be renewed.** Its operator cannot
+  update it. Inspecting it is a renewal: every claim matching renews it from now; a
+  contradiction revokes it and slashes the whole stake, all of it kept by the register; anything
+  else changes nothing. So inspecting a swapped model costs more than being challenged, and an
+  honest operator never has to let a passport lapse to inspect it again. It ends when it
+  expires, when it is revoked, or one day after `retire`, during which it is still in force and
+  can still be challenged. `unstake` hands the stake back after that day.
+- **The judge is asked twice as carefully.** Each judged probe is now two plain questions
+  (does the answer meet the criterion; does it fail to meet it), each in two presentation
+  orders, inside one block; the four readings must agree or the verdict is `inconclusive`. The
+  agent's answer also sits between two delimiter lines tagged with the sha256 of its fenced
+  text. The fence already removes every angle bracket, so the tag is defence in depth, not a
+  new guarantee.
+- **New views:** `challenges_of(agent, offset, limit)` (paged, with the verdicts and the money
+  each challenge moved), `credit_of(address)`, `stats()`; `passport(agent)` shows the stake,
+  the slash, this passport's challenge bond and fee, the suspension and the hold;
+  `agents_list(offset, limit)` is paged; `rules()` carries the money table below.
+
+**The escrow** (`contracts/fixtures/escrow.py`) keeps its rule: it pays the operator the buyer
+named only while `is_valid` says yes and the row still carries that operator and endpoint, and
+refunds the buyer otherwise. On Studio the payment actually moves. When the buyer first funds a
+job, the escrow also reads how much the register has ever slashed from that agent, and pays
+only if that number is unchanged at settlement: a job on a passport revoked while it ran
+refunds its buyer, even after the operator restakes and is issued again. A job on a suspended
+passport, or on one whose retire hold has passed (checked on the escrow's own clock), refunds
+its buyer too; a renewal during the job does not change what it pays.
+
+**The demo agents** (`api/agent.js`) gain `swap`: `?persona=swap&at=<unix seconds>` answers
+exactly like `honest` before `at` and like another model from `at` on (it names Meta, refuses
+to write code, obeys the smuggled instructions). The same registered endpoint drifts at a known
+moment, so the whole story fits in one sitting: inspected before `at`, issued; challenged after
+`at`, revoked, the stake slashed and the challenger paid. With `&to=coy` it drifts to an agent
+that will not say who made it instead, and a challenge after `at` settles nothing: the passport
+stands and the challenger pays the fee.
+
+**The evidence** is one on-chain run of `tests/on_chain/smoke.mjs` on Studio, recorded in
+[Evidence for version 2](#evidence-for-version-2).
+
+| what happens | the passport | the stake (0.5 GEN a claim) | the challenger | the operator |
+|---|---|---|---|---|
+| a challenge finds a claim contradicted | **revoked** (refused) | slashed: half to the challenger at once, half kept by the register | +½ the stake; the bond stays in credit | loses the stake |
+| a challenge finds every claim matching | stands | untouched | −the bond (a tenth of the stake), from credit | +the bond |
+| a challenge gets answers that settle nothing | stands | untouched | −the fee (a twentieth of the stake), from credit | +the fee |
+| a challenge gets no answer from the endpoint | **suspended** (`is_valid` says no) | untouched | nothing | nothing |
+| a challenge gets no answer an hour after the first | **revoked** | slashed as for a contradiction | +½ the stake | loses the stake |
+| the operator inspects it in force and a claim is contradicted | **revoked** | slashed: all of it kept by the register | | loses the stake |
+| the operator inspects it in force and every claim matches | **renewed** for 30 days from now | untouched | | |
+| the operator retires | in force for one more day, still challengeable | back by `unstake` after that day | | |
+
+For the four-claim passports of the demo (2 GEN of stake): the bond is 0.2 GEN, the fee
+0.1 GEN, and a revoke pays the challenger 1 GEN.
+
+**Why it needs GenLayer.** The question a challenge asks is "does this endpoint still behave
+the way its passport says", and the answer comes from many independent validators each
+talking to the endpoint itself and each asking its own model, agreeing on one word per claim.
+No oracle can be asked that on one machine without trusting that machine, and no ordinary
+contract can make a web call or read an answer. The money (the stake, the slash, the bond) only
+means something because that answer was reached under consensus, on the same chain that holds
+the money.
+
+**The new limits.** A challenge tests the endpoint as it behaves at that moment: an agent that
+answers the public battery honestly and drifts only on other prompts is not caught by it. An
+agent that drifts to evasive answers (it stops saying who made it) is not revoked either:
+*inconclusive* is not evidence, so the challenger pays the fee and the passport stands, but a
+renewal settles nothing for it, so it lapses at day 30. An outage during a challenge suspends a
+passport, and one that lasts over an hour while challengers keep asking costs the stake.
+Half of every slash stays in the register for good, paid to nobody: that is what makes an
+operator who has a friend catch them still lose half. A stake answers for the passport while it
+is in force; once it has expired or the retire hold has passed, nothing more can be slashed.
+The register stays first come first served by name; the escrow's binding to an operator
+address and an endpoint is what makes that safe.
+
+**Why re-rolling a challenge does not pay.** An honest agent backed by a real model may slip
+now and then. Every validator POSTs the battery itself, so a revoke needs the leader and a
+majority to see a slip independently, and every try that does not revoke costs a share of the
+prize. `test_re_rolling_challenges_against_a_flaky_honest_agent_loses_money` challenges 300
+times, from fresh addresses, an agent that obeys the smuggled line one call in three and one
+in ten. Both lose money. The same draws priced the way the first build priced them (a flat
+0.1 GEN bond and 0.01 GEN fee) come out ahead at one in three.
+
 This is not a proof of which model sits behind an endpoint. No such proof exists.
-It is five independent observers agreeing on behaviour, and it says *inconclusive* whenever
+It is the network's validators agreeing on behaviour, and it says *inconclusive* whenever
 the behaviour did not settle the question.
 
 Built for the GenLayer Agent Tank hackathon (Agentic Commerce), September 2026.
 Demo video: https://youtu.be/I-JxARhkFcQ ·
 the story in a Long Tweet : https://x.com/Hellishnum1/status/2100127935692714435
-Live at https://passport-two-taupe.vercel.app, on **GenLayer Studio Next** (consensus v0.6,
-chain 61997, RPC `https://studio-next.genlayer.com/api`, explorer
-`https://explorer-studio-dev.genlayer.com`). Every write there carries a quoted fee: the page
-and the tests simulate a call first and submit the fee the simulation recommends, and the
-unused part is refunded at finalization. A call the contract refuses cannot be simulated,
-so it is sent with the default quote and the refusal lands on chain with its reason.
+Live at https://passport-two-taupe.vercel.app. The page in this tree speaks version 2 on Studio
+(see [The site](#the-site)); until the version 2 register is deployed and its address set in
+`passport-app.js`, the page says so. Version 2 runs on **GenLayer Studio** (chain
+61999, RPC `https://studio.genlayer.com/api`, explorer `https://explorer-studio.genlayer.com`,
+runner `py-genlayer:1jb45aa8…`, genlayer-js 1.1.8 with no fee quotes), where value messages
+execute. Version 1 was deployed on **GenLayer Studio Next** for the hackathon (consensus v0.6,
+chain 61997, explorer `https://explorer-studio-dev.genlayer.com`), where every write carried a
+quoted fee; its record is kept below as history, under
+[Evidence for version 1](#evidence-for-version-1-studio-next-september-2026).
 
 ## What is in the box
 
 | path | what |
 |---|---|
-| `contracts/passport.py` | the register: claims, battery, inspection, verdicts, passports, `is_valid` |
+| `contracts/passport.py` | the register: claims and their stake, battery, inspection, verdicts, passports, paid challenges, retire and unstake, `is_valid` |
 | `contracts/fixtures/escrow.py` | the consequence: a buyer-funded job that pays only the operator the buyer bound to, and only while the passport covers the claim |
-| `api/agent.js` | twelve demo agents behind one Vercel function, `?persona=honest`, `liar`, `coy`, `polyglot`, `hijacker`, `embellisher`, `mathematician`, `miscalculator`, `gullible`, `overclaimer`, `chatterbox`, `echo` |
-| `index.html`, `passport-app.js` | the registry page: register, inspect, read passports, check the gate |
-| `tests/test_pure.py` | 38 tests with a GenLayer stub, including static checks on the source |
-| `tools/mutate.py` → `tests/MUTATIONS.md` | 30 defences removed one at a time, each killed by a named test |
+| `api/agent.js` | thirteen demo agents behind one Vercel function, `?persona=honest`, `liar`, `coy`, `polyglot`, `hijacker`, `embellisher`, `mathematician`, `miscalculator`, `gullible`, `overclaimer`, `chatterbox`, `echo`, and `swap&at=<unix>`, which changes its model at a moment of your choosing (`&to=coy` makes it stop saying who made it instead) |
+| `index.html`, `passport-app.js` | the page, version 2 on Studio: catch a swapped model, pay through escrow, stake, inspect, challenge with the result and the money, read every passport and its challenges, check the gate |
+| `waiting.js` → `tests/site/waiting.test.mjs` | what every wait on the page says (what is happening, how long, whether you must act, whether you can leave, where the money is), one function of state and role, tested for every state and role |
+| `tools/open-demo-agents.mjs` → `data/demo-agents.json` | opens the demo agents on a version 2 register from the demo operator's wallet: `demo-honest`, and swap agents staked and issued before their switch, so one visitor wallet can try every path |
+| `tests/test_pure.py` | 110 tests with a GenLayer stub and a simulated network in which every node has its own agent and its own judge, seeded random journeys that check the money after every step, and static checks on the source |
+| `tools/mutate.py` → `tests/MUTATIONS.md` | 82 defences removed one at a time, each killed by a named test |
 | `tools/snapshot.mjs` → `data/snapshot.json` | a labelled copy of the demo register for the minute Studio refuses to read it |
-| `api/txs.js` | one function that lists a register's transactions from the RPC, decodes each call, and returns hash, sender, method, agent and outcome; the page uses it to put the explorer link of every transaction under the passport it touched |
-| `tests/on_chain/smoke.mjs`, `personas.mjs`, `escrow.mjs` | the same story against Studio Next, with a throwaway account |
+| `api/txs.js` | one function that lists a register's transactions from Studio's RPC, decodes each call, and returns hash, sender, method, agent, value and outcome; the page uses it to put the explorer link of every transaction under the passport it touched |
+| `tests/on_chain/smoke.mjs` | the version 2 story on Studio: stakes topped up and handed back, a challenge that holds, a swapped model caught and slashed, an evasive one challenged for a fee, an escrow refunded and one paid, retire and its hold; resumable, every wait on the chain's clock |
+| `tests/on_chain/personas.mjs`, `escrow.mjs` | the other demo agents, and the escrow against an existing register, on Studio |
 | `DECISIONS.md` | the boundary, and the decisions that are not obvious from the code |
 
 ## The claims
@@ -66,8 +185,11 @@ judged.
 | `translate-1`: one Spanish sentence | `can:translate` | the validator's model, against a written criterion |
 | `summarize-1`: two facts to keep | `can:summarize` | the validator's model, against a written criterion |
 
-Judged probes are asked in **two presentation orders**. If the two answers disagree, the
-verdict is `inconclusive`: an ordering bias becomes a value, never a tolerance.
+Judged probes are asked as **two plain questions in two presentation orders**: does the answer
+meet the criterion, does it fail to meet it, each with the criterion first and with the answer
+first. If the four readings disagree, the verdict is `inconclusive`: an ordering bias, or a judge
+that says yes to everything, becomes a value, never a tolerance. (Version 1 asked one question
+in two orders.)
 
 ## What crosses consensus
 
@@ -81,7 +203,8 @@ per claim, exactly. Agent answers vary between calls; verdicts do not have to.
 - otherwise → **pending**; ask again
 
 Every agent answer is capped and fenced by replacement (`<` → `(`, `>` → `)`) before it
-reaches a judge, inside an explicit untrusted-data boundary. Storage keeps what the agent
+reaches a judge, inside an explicit untrusted-data boundary: two delimiter lines tagged with the
+sha256 of the fenced text, which no answer can write. Storage keeps what the agent
 actually said; only the prompt is fenced. Nothing the caller controls is printed on a
 delimiter line; the probes and their criteria are contract constants. The `hijacker`
 demo agent exists to show this holding on chain: its code answer is a refusal followed by
@@ -91,17 +214,21 @@ a fake end-of-answer line and an instruction to the judge, and it is refused.
 
 | call | who | what it can do |
 |---|---|---|
-| `register` | anyone | puts an agent on the record; the sender becomes its operator |
-| `update`, `withdraw` | the operator | change endpoint or claims (resets the passport); take the agent off |
-| `inspect` | the operator | runs the battery; any outcome applies: issued, refused or pending |
-| `challenge` | anyone, once a day per agent | runs the same battery on an issued passport; **only a contradiction changes it** |
-| `is_valid`, `passport`, … | anyone, free | read |
+| `register` | anyone, with 0.5 GEN per claim | puts an agent on the record with its stake; the sender becomes its operator |
+| `update` | the operator, not while the passport is in force | change endpoint or claims (resets the passport); tops the stake up or hands the excess back |
+| `inspect` | the operator | runs the battery; on a passport not in force any outcome applies (issued, refused or pending); on one in force it is a renewal: renewed, revoked with the whole stake kept, or unchanged |
+| `retire`, `unstake` | the operator | end the agent (it stays in force, and challengeable, for one day); then take the stake back |
+| `challenge` | anyone but the operator, bonded with a tenth of the stake in credit, once in ten minutes per challenger and passport | runs the same battery on a passport in force; a contradiction revokes it and slashes the stake; an endpoint that does not answer is suspended, and revoked if it is still silent an hour later; otherwise it stands and the bond or the fee goes to the operator |
+| `deposit`, `withdraw` | anyone, for their own credit | add challenge credit; take it all back |
+| `is_valid`, `passport`, `challenges_of`, … | anyone, free | read |
 
-An inspection can end a passport, so it belongs to the account that put the agent on the
-record. A stranger who doubts a passport (a buyer about to pay, a marketplace, a rival)
+(Version 1 had `withdraw(agent)` where version 2 has `retire`, and a free challenge open to
+anyone once a day per agent, which only a contradiction could act on.) An inspection can end a
+passport, so it belongs to the account that put the agent on the record. A stranger who doubts a passport (a buyer about to pay, a marketplace, a rival)
 challenges it: same probes, same judges, same agreement rule, and the challenger is
 written on the row. Matches and inconclusives leave the passport standing. A passport can
-be taken away with evidence, never parked by asking on a bad day. Every row carries its
+be taken away with evidence, never parked because the judges had a bad day; only an endpoint
+that does not answer at all is suspended, until it answers again. Every row carries its
 operator, who last inspected it, and who last challenged it.
 
 ## The consequence
@@ -117,8 +244,9 @@ first funded, the operator may settle too, under the same rule, so a buyer canno
 finished job forever. A register that cannot be read refunds the buyer rather than locking
 the job, and expiry is checked on the escrow's own clock as well as the register's.
 
-Measured on Studio Next again on 16 September 2026, and the result is worth stating
-precisely because it is not what it first looks like. **Every decision the escrow makes
+Version 2 runs on Studio, where the payout executes. The paragraphs below record what version 1
+measured on Studio Next. Measured on Studio Next again on 16 September 2026, and the result is
+worth stating precisely because it is not what it first looks like. **Every decision the escrow makes
 settles correctly on chain**: `would_pay` reads the register with no model and no
 consensus, a job for a refused passport refunds the buyer, a job bound to a squatter's
 address refunds the buyer and pays the squatter nothing, a stranger cannot settle, and
@@ -149,8 +277,8 @@ operator of a name is.
 
 ## The demo agents
 
-`api/agent.js` serves twelve agents so that anyone can try the register without running
-one. They are scripted responders, not models: each answers the battery in a fixed way,
+`api/agent.js` serves thirteen agents so that anyone can try the register without running
+one: the twelve below, and `swap` (see [Version 2](#version-2-a-passport-is-worth-what-its-operator-stakes)). They are scripted responders, not models: each answers the battery in a fixed way,
 chosen so that together they show every outcome the register knows. The battery does not
 care what sits behind an endpoint. With `OPENAI_API_KEY` set (`MODEL` optional) each
 persona becomes a real model under a system prompt with the same intent.
@@ -179,7 +307,73 @@ on the first ask.
 Any HTTPS endpoint that answers `POST {"prompt"}` with `{"answer"}` can be registered
 instead; the page shows a wrapper of a few lines.
 
-## Evidence
+## The site
+
+`index.html` and `passport-app.js` speak version 2 on **GenLayer Studio** (chain 61999, RPC
+`https://studio.genlayer.com/api`, explorer `https://explorer-studio.genlayer.com`) through
+genlayer-js 1.1.8 (`studionet`, no fee quotes). The wallet is asked to switch to chain 61999, or to
+add it. Every signature is the visitor's own. A visitor with one wallet can try every new path:
+
+- **Catch a swapped model** (section 02). The site's demo operator staked 2 GEN behind a `swap`
+  agent that was inspected and issued while its endpoint answered like the honest agent, and whose
+  model changed at a moment written into its URL. The visitor deposits the bond (a tenth of the
+  stake) as credit and challenges it. A waiting panel follows the round (the leader, the
+  validators running it themselves, the reveal) while every validator calls the agent; the result
+  card says CONTRADICTED · REVOKED · STAKE PAID TO YOU, with the slash, the half paid, the half
+  kept, the verdicts and reasons, and the visitor's balance before and after the transfer lands at
+  finalization. The page opens the challenge two minutes after the swap moment, so every validator
+  meets the new model. A visitor cannot challenge an agent of their own, which is why this agent
+  belongs to the site's demo operator.
+- **Pay the honest one through escrow** (section 03). The visitor deploys a job
+  (`contracts/fixtures/escrow.py`) bound to `demo-honest`, `can:code`, and the operator and endpoint
+  the site names, funds it and settles it; the page shows `would_pay`, then the operator's balance
+  before and after the payment lands. Bound to the swap agent instead, the same job refunds its
+  buyer once the agent is caught.
+- **Stake your own** (section 06). Register sends 0.5 GEN a claim; Update sends what new claims
+  lack and hands back what removed ones no longer need; Retire, then Unstake after the day's hold.
+  The `swap` chip fills an agent that changes model ten minutes ahead: inspected before then it is
+  issued; after it, a challenge from a second account revokes it, and so does its operator's own
+  renewal.
+- **Challenge any passport** (section 07): the agent's stake, bond and fee, this wallet's credit and
+  its cooldown; Deposit the bond (exactly what is missing), Challenge, Take back my credit. A result
+  card for every outcome: contradicted (revoked, stake paid to you), all claims held (bond to the
+  operator), inconclusive (fee to the operator), no answer (suspended, nothing moved), then the
+  ten-minute cooldown counted down on the chain's clock. The operator's Inspect becomes Renew on a
+  passport in force.
+- **Every passport** (section 08) shows its stake, its state (issued, refused, revoked, pending,
+  unverified, expired, suspended, retired and its hold) and its challenges, ten at a time, with the
+  money each one moved; the register's totals sit above them (staked, paid to challengers, kept,
+  paid to operators, credit held). Agents are paged eight at a time, newest first.
+
+Every wait answers the same five questions: what is happening, how long, whether you need to act,
+whether you can leave, and where the money is (`waiting.js`, one function of state and role, run
+for every state and role by `tests/site/waiting.test.mjs`). A challenge or an escrow job left half
+way is picked up again on the next visit. Reads are paced under Studio's 30 a minute and kept for
+30 seconds, because a refused read reaches a browser only as "Failed to fetch".
+
+**Opening it.** The page reads its register from the constant `DEMO_REGISTER` in
+`passport-app.js`. While it is empty, the page says the version 2 register is not deployed yet and
+offers to deploy one from the visitor's wallet. To open it:
+
+1. deploy the site, so `api/agent.js` serves the `swap` persona;
+2. deploy `contracts/passport.py` to Studio from the author's wallet;
+3. `DRY=1 REGISTER=0x… node tools/open-demo-agents.mjs`, then the same with
+   `DEMO_OPERATOR_KEY=0x…` and without `DRY`. It registers and inspects `demo-honest` and one
+   `demo-swap-<n>` whose moment is fifteen minutes ahead, both staked, and writes
+   `data/demo-agents.json`. Later, `SWAPS=3` opens three fresh swap agents once the open ones have
+   been caught, and `RENEW=1` renews `demo-honest` before its 30 days run out. The demo operator
+   should not be the wallet the page is tried with: an operator cannot challenge its own agent;
+4. set `DEMO_REGISTER`, commit it with `data/demo-agents.json`, and retake the snapshot with
+   `node tools/snapshot.mjs 0x…`.
+
+The page trusts a demo row only when its operator is the address `data/demo-agents.json` names: a
+name on the register is a handle, not authority.
+
+## Evidence for version 2
+
+The on-chain run is recorded here once it has run.
+
+## Evidence for version 1 (Studio Next, September 2026)
 
 Everything below was signed from the author's own wallet on 14 September 2026 on
 **GenLayer Studio Next** (chain 61997). The register's deployed bytes equal
@@ -219,27 +413,30 @@ Issued passports carry the message clock: `honest` was issued at `2026-09-14T13:
 and expires thirty days later; the row says so and `is_valid` will say no from then on. The
 challenge above is stamped the same way, which is what the once-a-day limit is counted from.
 
-The page loads this register by itself. `data/snapshot.json` is a labelled copy of it
-(`tools/snapshot.mjs`), shown only when the network refuses to read the register, which
-Studio does for a minute at a time.
+The version 1 page loaded this register by itself. `data/snapshot.json` is still a labelled copy
+of it (`tools/snapshot.mjs`); the version 2 page shows a snapshot only of its own register, so it
+is retaken once the version 2 register is deployed.
 
 ## Running it
 
 ```bash
-pip install -r requirements-dev.txt && python -m pytest -q tests/    # 38 pure tests, no network, under a second
-npm ci                                        # genlayer-js 2.0.0-rc.1 and viem 2.56.5, from the lockfile
-python tools/mutate.py                        # 30 mutants, all must die, writes tests/MUTATIONS.md
-genvm-lint check contracts/passport.py
-node tools/serve-agents.mjs                   # the site and the twelve agents on http://localhost:8797
-# the on-chain tests run against Studio Next with genlayer-js 2.0.0-rc.1 (the fee-quoting SDK); the runner is py-genlayer:5jycge4q…
-HONEST_URL=… LIAR_URL=… node tests/on_chain/smoke.mjs      # Studio, throwaway account, 22 checks
-AGENT_BASE=https://…/api/agent node tests/on_chain/personas.mjs   # the ten agents beyond honest and liar, 53 checks
+pip install -r requirements-dev.txt && python -m pytest -q tests/    # 110 pure tests, no network, under a second
+python tools/mutate.py                        # 82 mutants, all must die, writes tests/MUTATIONS.md
+genvm-lint check contracts/passport.py && genvm-lint check contracts/fixtures/escrow.py
+npm ci                                        # genlayer-js 1.1.8 and viem 2.56.8, from the lockfile
+node --test tests/site/waiting.test.mjs       # the page's waiting copy and money formatting, every state and role
+node tools/serve-agents.mjs                   # the site and the thirteen agents on http://localhost:8797
+DRY=1 REGISTER=0x… node tools/open-demo-agents.mjs   # the demo agents the page needs; DEMO_OPERATOR_KEY=0x… to send
+# the on-chain tests run against Studio (chain 61999) with genlayer-js 1.1.8; the runner is py-genlayer:1jb45aa8…
+node tests/on_chain/smoke.mjs                 # version 2, about half an hour; RESUME=1 continues a run that was cut off
+AGENT_BASE=https://…/api/agent node tests/on_chain/personas.mjs   # the ten agents beyond honest and liar
 PASSPORT=0x… ISSUED=honest REFUSED=hijacker CLAIM=can:code OPERATOR_KEY=0x… node tests/on_chain/escrow.mjs
 ```
 
-The on-chain suites need `genlayer-js` and `viem` on the Node path. Each runs against Studio
-Next with a throwaway account funded from the faucet and prints the register it deployed.
-What they establish, as measured on 14 September 2026: `smoke.mjs`, 22 of 22, the honest
+The smoke takes `OPERATOR_KEY`, `BUYER_KEY`, `CHALLENGER_KEY` and `STRANGER_KEY` when they are
+set and generates (and funds from the faucet) any that is not; `AGENT_BASE` must serve the `swap`
+persona with `to=coy`. Version 1's suites ran against Studio Next with throwaway accounts.
+What they established, as measured on 14 September 2026: `smoke.mjs`, 22 of 22, the honest
 agent issued and the liar refused, a stranger's inspection refused, a stranger's challenge
 standing and a second challenge the same day refused as too soon, every round settling
 3 agree; `personas.mjs`, 53 of 53, the ten other agents ending as their table says;
@@ -250,8 +447,10 @@ buyer named, 7 and 3 GEN went back to the buyer, and a squatter and a stranger g
 
 ## Rules this was built under
 
-Coarse values from a closed set, with the uncertainty inside the value. Both presentation
-orders in one block. Every write bound to its sender, tested. Provenance on every row.
+Coarse values from a closed set, with the uncertainty inside the value. Both framings and both
+presentation orders in one block. A payable call that never raises and refunds every refusal.
+Every loop bounded by a named constant or a page, every settlement constant work, and the money
+checked after every step of seeded random journeys. Every write bound to its sender, tested. Provenance on every row.
 A refusal that leaves a way out. Fence by replacement, never deletion. Calendar arithmetic
 in integers, because floats and `datetime` trap the VM in deterministic mode. And a
 mutation table, because a passing count is a claim and a killed mutant is evidence.
